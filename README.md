@@ -103,24 +103,49 @@ feb26bmlops_int_rakuten/
     └── fusion/
 ```
 
-## Train and predict API (MVP)
+## Train and predict API (minimal)
 
-Planned FastAPI endpoints:
+Implemented endpoints:
 
 - `POST /train/text`
-- `POST /train/image`
-- `POST /train/fusion`
-- `POST /evaluate`
-- `POST /predict`
+- `POST /predict/text`
 - `GET /health`
 
-### Endpoint behavior
+### Run API locally
 
-- `/train/text`: trains text branch, saves artifacts + metrics.
-- `/train/image`: trains image branch, saves artifacts + metrics.
-- `/train/fusion`: trains/optimizes weights for combining branch probabilities.
-- `/evaluate`: evaluates individual branches and fusion on validation set, returns metrics.
-- `/predict`: predicts class probabilities using the fusion model (weighted combination of text + image) for single or batch inputs of text + image.
+```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Example requests
+
+Train:
+
+```bash
+curl -X POST http://localhost:8000/train/text \
+    -H "Content-Type: application/json" \
+    -d '{
+        "train_csv_path": "data/processed/train_fixed.csv",
+        "validation_csv_path": "data/processed/test_fixed.csv",
+        "model_ckpt": "jhu-clsp/mmBERT-base",
+        "sample_number": 0.05,
+        "batch_size": 16,
+        "epochs": 2,
+        "lr": 0.00002
+    }'
+```
+
+Predict:
+
+```bash
+curl -X POST http://localhost:8000/predict/text \
+    -H "Content-Type: application/json" \
+    -d '{
+        "run_id": "mmBERT-base_YYYYMMDD_HHMMSS",
+        "text": "Votre texte produit ici",
+        "max_length": 256
+    }'
+```
 
 
 ## Migration plan (notebooks -> src)
