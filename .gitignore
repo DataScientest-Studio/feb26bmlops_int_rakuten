@@ -5,6 +5,9 @@ __pycache__/
 # C extensions
 *.so
 
+# AI files
+AGENTS.md
+
 # Distribution / packaging
 .Python
 env/
@@ -22,6 +25,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+.venv/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -77,6 +81,8 @@ target/
 
 # exclude data from source control by default
 /data/
+# eclude models from source control by default
+/models/
 
 # Mac OS-specific storage files
 .DS_Store
