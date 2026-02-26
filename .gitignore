@@ -79,7 +79,8 @@ target/
 /models/
 /data/rakuten_explored.csv
 /data/rakuten_processed.csv
-
+/data/processed/train_fixed.csv
+/data/processed/test_fixed.csv
 
 AGENTS.md
 # Mac OS-specific storage files
