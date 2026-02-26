@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from ..pipelines.text_pipeline import train_text_bert_from_csv
+from src.pipelines.text_pipeline import train_text_bert_from_csv
 
 
 def train_text_model(cfg):
