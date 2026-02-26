@@ -76,8 +76,10 @@ target/
 .ipynb_checkpoints/
 
 # exclude data from source control by default
-/data/
 /models/
+/data/rakuten_explored.csv
+/data/rakuten_processed.csv
+
 
 AGENTS.md
 # Mac OS-specific storage files
