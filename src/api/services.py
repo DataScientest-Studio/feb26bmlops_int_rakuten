@@ -4,7 +4,7 @@ from src.models.predict_model import predict_text, predict_text_linear_svm
 from src.models.train_model import train_model
 
 
-def train_text_service(payload: dict) -> dict:
+def train_text_service(payload):
     cfg = {
         "experiment_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "text_col": "text_stripped",
@@ -43,11 +43,11 @@ def train_text_service(payload: dict) -> dict:
     return train_model(cfg)
 
 
-def predict_text_service(payload: dict) -> dict:
+def predict_text_service(payload):
     return predict_text(payload)
 
 
-def train_text_linear_svm_service(payload: dict) -> dict:
+def train_text_linear_svm_service(payload):
     cfg = {
         "experiment_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "text_col": "text_stripped",
@@ -68,5 +68,5 @@ def train_text_linear_svm_service(payload: dict) -> dict:
     return train_model(cfg)
 
 
-def predict_text_linear_svm_service(payload: dict) -> dict:
+def predict_text_linear_svm_service(payload):
     return predict_text_linear_svm(payload)

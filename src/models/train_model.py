@@ -97,7 +97,7 @@ if __name__ == "__main__":
         "train_csv_path": "data/processed/train_fixed.csv",
         "validation_csv_path": "data/processed/test_fixed.csv",
         "sample_number": 1,
-        "c": 1.0,
+        "c": 2.0,
         "max_iter": 5000,
         "ngram_min": 1,
         "ngram_max": 2,
