@@ -99,10 +99,10 @@ if __name__ == "__main__":
         "sample_number": 1,
         "c": 2.0,
         "max_iter": 5000,
-        "ngram_min": 1,
-        "ngram_max": 2,
+        "ngram_min": 3,
+        "ngram_max": 5,
         "min_df": 2,
-        "max_features": 100000,
+        "max_features": 150000,
     }
 
     output = train_model(CFG)

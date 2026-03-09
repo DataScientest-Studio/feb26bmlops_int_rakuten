@@ -14,13 +14,13 @@ class TrainTextRequest(BaseModel):
 class TrainLinearSVMTextRequest(BaseModel):
     train_csv_path: str = "data/processed/train_fixed.csv"
     validation_csv_path: str = "data/processed/test_fixed.csv"
-    sample_number: float | None = 0.05
-    c: float = 1.0
+    sample_number: float = 1.0
+    c: float = 2.0
     max_iter: int = 5000
-    ngram_min: int = 1
-    ngram_max: int = 2
+    ngram_min: int = 3
+    ngram_max: int = 5
     min_df: int = 2
-    max_features: int = 100000
+    max_features: int = 150000
 
 
 class TrainTextResponse(BaseModel):

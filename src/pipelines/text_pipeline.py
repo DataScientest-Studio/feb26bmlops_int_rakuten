@@ -255,20 +255,26 @@ def train_text_linear_svm_from_csv(cfg):
     with open(os.path.join(output_dir, "label_map.json"), "w", encoding="utf-8") as label_file:
         json.dump({"id2label": id_to_label, "label2id": label_to_id}, label_file, indent=2)
 
+    print(f"Training LinearSVM with C={cfg.get('c', 2.0)}, max_iter={cfg.get('max_iter', 5000)}, "
+          f"ngram_range=({cfg.get('ngram_min', 3)}, {cfg.get('ngram_max', 5)}), min_df={cfg.get('min_df', 2)}, max_features={cfg.get('max_features', 150000)}")
+    
     vectorizer = TfidfVectorizer(
-        ngram_range=(cfg.get("ngram_min", 1), cfg.get("ngram_max", 2)),
+        ngram_range=(cfg.get("ngram_min", 3), cfg.get("ngram_max", 5)),
         min_df=cfg.get("min_df", 2),
-        max_features=cfg.get("max_features", 100000),
+        max_features=cfg.get("max_features", 150000),
+        analyzer="char"
     )
     x_train = vectorizer.fit_transform(train_df[text_column].astype(str).tolist())
     x_validation = vectorizer.transform(validation_df[text_column].astype(str).tolist())
 
     model = LinearSVC(
-        C=cfg.get("c", 1.0),
+        C=cfg.get("c", 2.0),
         class_weight=cfg.get("class_weight", "balanced"),
         max_iter=cfg.get("max_iter", 5000),
     )
     model.fit(x_train, train_df["label"].values)
+
+    print("Training completed. Evaluating on validation set...")
 
     validation_predictions = model.predict(x_validation)
     eval_accuracy = float(accuracy_score(validation_df["label"].values, validation_predictions))
