@@ -59,7 +59,6 @@ pydantic_core==2.41.5
 Pygments==2.19.2
 python-dateutil==2.9.0.post0
 PyYAML==6.0.3
--e git+https://github.com/DataScientest-Studio/feb26bmlops_int_rakuten@37eba6b3c8746261b26495b6d13c44356e1c75af#egg=rakuten_mlops
 regex==2026.2.19
 requests==2.32.5
 rich==14.3.3

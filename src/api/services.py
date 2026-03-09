@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.models.predict_model import predict_text
+from src.models.predict_model import predict_text, predict_text_linear_svm
 from src.models.train_model import train_model
 
 
@@ -45,3 +45,28 @@ def train_text_service(payload: dict) -> dict:
 
 def predict_text_service(payload: dict) -> dict:
     return predict_text(payload)
+
+
+def train_text_linear_svm_service(payload: dict) -> dict:
+    cfg = {
+        "experiment_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "text_col": "text_stripped",
+        "label_col": "prdtypecode",
+        "model_type": "text_linear_svm",
+        "seed": 42,
+        "train_csv_path": payload.get("train_csv_path", "data/processed/train_fixed.csv"),
+        "validation_csv_path": payload.get("validation_csv_path", "data/processed/test_fixed.csv"),
+        "sample_number": payload.get("sample_number", 0.05),
+        "c": payload.get("c", 1.0),
+        "max_iter": payload.get("max_iter", 5000),
+        "ngram_min": payload.get("ngram_min", 1),
+        "ngram_max": payload.get("ngram_max", 2),
+        "min_df": payload.get("min_df", 2),
+        "max_features": payload.get("max_features", 100000),
+        "class_weight": "balanced",
+    }
+    return train_model(cfg)
+
+
+def predict_text_linear_svm_service(payload: dict) -> dict:
+    return predict_text_linear_svm(payload)

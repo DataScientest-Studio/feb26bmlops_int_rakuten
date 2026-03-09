@@ -1,6 +1,8 @@
 import json
 import os
 
+import joblib
+import numpy as np
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -53,6 +55,51 @@ def predict_text(cfg: dict) -> dict:
 
 	predicted_id = int(torch.argmax(probabilities).item())
 	confidence = float(probabilities[predicted_id].item())
+	id_to_label = _load_label_map(run_id=run_id, base_dir=base_dir)
+	predicted_label = id_to_label.get(str(predicted_id), str(predicted_id))
+
+	return {
+		"run_id": run_id,
+		"predicted_class_id": predicted_id,
+		"predicted_label": predicted_label,
+		"confidence": confidence,
+	}
+
+
+def predict_text_linear_svm(cfg: dict) -> dict:
+	run_id = cfg.get("run_id")
+	text = cfg.get("text")
+	base_dir = cfg.get("base_dir", "models/text")
+
+	if not run_id:
+		raise ValueError("'run_id' is required")
+	if text is None or str(text).strip() == "":
+		raise ValueError("'text' must be a non-empty string")
+
+	run_dir = os.path.join(base_dir, run_id)
+	model_path = os.path.join(run_dir, "linear_svm.joblib")
+	vectorizer_path = os.path.join(run_dir, "vectorizer.joblib")
+	if not os.path.exists(model_path):
+		raise FileNotFoundError(f"LinearSVM model not found: {model_path}")
+	if not os.path.exists(vectorizer_path):
+		raise FileNotFoundError(f"Vectorizer not found: {vectorizer_path}")
+
+	vectorizer = joblib.load(vectorizer_path)
+	model = joblib.load(model_path)
+	features = vectorizer.transform([str(text)])
+
+	decision_scores = model.decision_function(features)
+	if np.ndim(decision_scores) == 1:
+		scores = np.stack([-decision_scores, decision_scores], axis=1)
+	else:
+		scores = decision_scores
+
+	scores = scores[0] - np.max(scores[0])
+	exp_scores = np.exp(scores)
+	probabilities = exp_scores / np.sum(exp_scores)
+
+	predicted_id = int(np.argmax(probabilities))
+	confidence = float(probabilities[predicted_id])
 	id_to_label = _load_label_map(run_id=run_id, base_dir=base_dir)
 	predicted_label = id_to_label.get(str(predicted_id), str(predicted_id))
 

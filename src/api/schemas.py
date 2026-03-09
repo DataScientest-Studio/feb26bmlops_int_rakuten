@@ -11,6 +11,18 @@ class TrainTextRequest(BaseModel):
     lr: float = 2e-5
 
 
+class TrainLinearSVMTextRequest(BaseModel):
+    train_csv_path: str = "data/processed/train_fixed.csv"
+    validation_csv_path: str = "data/processed/test_fixed.csv"
+    sample_number: float | None = 0.05
+    c: float = 1.0
+    max_iter: int = 5000
+    ngram_min: int = 1
+    ngram_max: int = 2
+    min_df: int = 2
+    max_features: int = 100000
+
+
 class TrainTextResponse(BaseModel):
     run_id: str
     output_dir: str
@@ -23,6 +35,11 @@ class PredictTextRequest(BaseModel):
     run_id: str
     text: str = Field(..., min_length=1)
     max_length: int = 256
+
+
+class PredictLinearSVMTextRequest(BaseModel):
+    run_id: str
+    text: str = Field(..., min_length=1)
 
 
 class PredictTextResponse(BaseModel):

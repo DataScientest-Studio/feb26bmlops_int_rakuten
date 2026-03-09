@@ -4,10 +4,14 @@ import inspect
 from datetime import datetime
 
 import evaluate
+import joblib
 import numpy as np
 import torch
 import torch.nn as nn
 from datasets import Dataset
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.svm import LinearSVC
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -209,4 +213,84 @@ def train_text_bert_from_csv(cfg):
         "eval_f1_macro": evaluation_output.get("eval_f1_macro"),
         "eval_loss": evaluation_output.get("eval_loss"),
         "best_model_checkpoint": getattr(trainer.state, "best_model_checkpoint", None),
+    }
+
+
+def train_text_linear_svm_from_csv(cfg):
+    experiment_id = cfg.get("experiment_id", datetime.now().strftime("%Y%m%d_%H%M%S"))
+    text_column = cfg.get("text_col", "text_stripped")
+    label_column = cfg.get("label_col", "prdtypecode")
+
+    output_dir = cfg.get("output_dir")
+    if not output_dir:
+        output_dir = f"models/text/linearSVM_{experiment_id}"
+    os.makedirs(output_dir, exist_ok=True)
+
+    full_cfg = dict(cfg)
+    full_cfg["experiment_id"] = experiment_id
+    full_cfg["output_dir"] = output_dir
+    with open(os.path.join(output_dir, "cfg.json"), "w", encoding="utf-8") as cfg_file:
+        json.dump(full_cfg, cfg_file, indent=2)
+
+    train_csv_path = cfg.get("train_csv_path")
+    validation_csv_path = cfg.get("validation_csv_path")
+    if not train_csv_path or not validation_csv_path:
+        raise ValueError("Both 'train_csv_path' and 'validation_csv_path' are required")
+
+    train_df, validation_df = load_train_validation_csv(
+        train_csv_path=train_csv_path,
+        validation_csv_path=validation_csv_path,
+        text_column=text_column,
+        label_column=label_column,
+        sample_number=cfg.get("sample_number"),
+        seed=cfg.get("seed", 42),
+    )
+
+    train_df, validation_df, _, id_to_label, label_to_id = fit_and_apply_label_encoder(
+        train_df=train_df,
+        validation_df=validation_df,
+        label_column=label_column,
+    )
+
+    with open(os.path.join(output_dir, "label_map.json"), "w", encoding="utf-8") as label_file:
+        json.dump({"id2label": id_to_label, "label2id": label_to_id}, label_file, indent=2)
+
+    vectorizer = TfidfVectorizer(
+        ngram_range=(cfg.get("ngram_min", 1), cfg.get("ngram_max", 2)),
+        min_df=cfg.get("min_df", 2),
+        max_features=cfg.get("max_features", 100000),
+    )
+    x_train = vectorizer.fit_transform(train_df[text_column].astype(str).tolist())
+    x_validation = vectorizer.transform(validation_df[text_column].astype(str).tolist())
+
+    model = LinearSVC(
+        C=cfg.get("c", 1.0),
+        class_weight=cfg.get("class_weight", "balanced"),
+        max_iter=cfg.get("max_iter", 5000),
+    )
+    model.fit(x_train, train_df["label"].values)
+
+    validation_predictions = model.predict(x_validation)
+    eval_accuracy = float(accuracy_score(validation_df["label"].values, validation_predictions))
+    eval_f1_macro = float(
+        f1_score(validation_df["label"].values, validation_predictions, average="macro")
+    )
+    eval_metrics = {
+        "eval_accuracy": eval_accuracy,
+        "eval_f1_macro": eval_f1_macro,
+    }
+    with open(os.path.join(output_dir, "eval_metrics.json"), "w", encoding="utf-8") as eval_file:
+        json.dump(eval_metrics, eval_file, indent=2)
+
+    joblib.dump(vectorizer, os.path.join(output_dir, "vectorizer.joblib"))
+    joblib.dump(model, os.path.join(output_dir, "linear_svm.joblib"))
+
+    return {
+        "output_dir": output_dir,
+        "run_id": os.path.basename(output_dir),
+        "train_samples_used": len(train_df),
+        "validation_samples_used": len(validation_df),
+        "eval_accuracy": eval_accuracy,
+        "eval_f1_macro": eval_f1_macro,
+        "eval_loss": None,
     }
