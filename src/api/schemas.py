@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-
+from enum import Enum
 
 class TrainTextRequest(BaseModel):
     train_csv_path: str = "data/processed/train_fixed.csv"
@@ -47,3 +47,73 @@ class PredictTextResponse(BaseModel):
     predicted_class_id: int
     predicted_label: str
     confidence: float
+
+###schemas for the Image Classification API
+
+class ModelType(str, Enum):
+    alexnet = "alexnet"
+    vgg16 = "vgg16"
+    resnet50 = "resnet50"
+
+
+class FineTuneMode(str, Enum):
+    classifier = "classifier"
+    full = "full"
+    resnet_selective = "resnet_selective"
+
+
+class SchedulerType(str, Enum):
+    steplr = "steplr"
+    cosine = "cosine"
+    plateau = "plateau"
+
+
+class TrainRequest(BaseModel):
+    model_type: ModelType = ModelType.resnet50
+    mode: FineTuneMode = FineTuneMode.classifier
+    epochs: int = Field(default=10, ge=1, le=500)
+    lr_cls: float = Field(default=1e-2, gt=0)
+    lr_back: float = Field(default=1e-3, gt=0)
+    scheduler: SchedulerType = SchedulerType.steplr
+    step_size: int = Field(default=10, ge=1)
+    gamma: float = Field(default=0.1, gt=0)
+    resume: str | None = None
+    dropout: float = Field(default=0.0, ge=0.0, le=0.9)
+    label_smoothing: float = Field(default=0.0, ge=0.0, lt=1.0)
+    cm_every: int = Field(default=5, ge=1)
+
+
+class JobStatus(str, Enum):
+    pending = "pending"
+    running = "running"
+    done = "done"
+    failed = "failed"
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: JobStatus
+    current_epoch: int = 0
+    total_epochs: int = 0
+    last_train_loss: float | None = None
+    last_val_loss: float | None = None
+    last_val_accuracy: float | None = None
+    last_val_f1: float | None = None
+    session_folder: str | None = None
+    error: str | None = None
+
+
+class PredictResponse(BaseModel):
+    class_name: str
+    class_id: int
+    confidence: float
+    top_k: list[dict] = []
+
+
+class HealthResponse(BaseModel):
+    status: str
+    model_loaded: bool
+    model_type: str | None
+    model_path: str | None
+    device: str
+    num_classes: int

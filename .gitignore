@@ -101,3 +101,8 @@ AGENTS.md
 .mypy_cache/
 
 .venv
+
+.jpeg
+.jpg
+/data/processed/train
+/data/processed/test
