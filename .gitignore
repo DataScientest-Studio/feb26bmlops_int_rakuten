@@ -5,6 +5,9 @@ __pycache__/
 # C extensions
 *.so
 
+# AI files
+AGENTS.md
+
 # Distribution / packaging
 .Python
 env/
@@ -22,6 +25,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+.venv/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -75,12 +79,15 @@ target/
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 
-# exclude data from source control by default
-/models/
 /data/rakuten_explored.csv
 /data/rakuten_processed.csv
 /data/processed/train_fixed.csv
 /data/processed/test_fixed.csv
+/data/
+
+# eclude models from source control by default
+/models/
+
 
 AGENTS.md
 # Mac OS-specific storage files
