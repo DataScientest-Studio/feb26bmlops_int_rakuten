@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, HTTPException
 
 from src.api.schemas import (
@@ -15,7 +17,26 @@ from src.api.services import (
     train_text_service,
 )
 
-app = FastAPI(title="Rakuten Text API", version="0.1.0")
+from contextlib import asynccontextmanager
+from . import train, predict, jobs
+from src.models.classifier import classifier_service
+from src.api.schemas import HealthResponse
+
+from dotenv import load_dotenv
+load_dotenv()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: load model
+    try:
+        classifier_service.load()
+    except Exception as e:
+        print(f"[WARNING] Could not load classifier model: {e}")
+        print("[WARNING] /predict endpoints will return 503 until model is available.")
+    yield
+    # Shutdown: nothing to clean up
+
+app = FastAPI(title="Rakuten Text API", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -69,3 +90,21 @@ def predict_text_linear_svm_endpoint(request: PredictLinearSVMTextRequest):
         return PredictTextResponse(**output)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+
+app.include_router(predict.router)
+app.include_router(train.router)
+app.include_router(jobs.router)
+
+
+@app.get("/health", response_model=HealthResponse, tags=["health"])
+async def health():
+    return HealthResponse(
+        status="ok",
+        model_loaded=classifier_service.is_loaded(),
+        model_type=classifier_service.model_type,
+        model_path=classifier_service.model_path,
+        device=classifier_service.device,
+        num_classes=classifier_service.num_classes,
+    )
