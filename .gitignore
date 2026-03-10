@@ -83,8 +83,8 @@ target/
 /data/rakuten_processed.csv
 /data/processed/train_fixed.csv
 /data/processed/test_fixed.csv
-/data/
 
+#/data/
 # eclude models from source control by default
 /models/
 
