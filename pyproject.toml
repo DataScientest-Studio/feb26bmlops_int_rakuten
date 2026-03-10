@@ -26,6 +26,7 @@ dependencies = [
     "requests==2.32.5",
     "pandas",
     "mlflow>=3.10.1",
+    "flake8"
 ]
 
 [tool.setuptools.packages.find]
