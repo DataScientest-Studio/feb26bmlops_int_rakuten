@@ -1,5 +1,5 @@
 ipykernel>=7.2.0
-pandas==2.2.3
+pandas>=2.2.0,<3.0.0
 psycopg2-binary>=2.9.11
 sqlalchemy>=2.0.47
 dvc>=3.66.1
@@ -56,7 +56,6 @@ nvidia-nvjitlink-cu12==12.8.93
 nvidia-nvshmem-cu12==3.4.5
 nvidia-nvtx-cu12==12.8.90
 packaging==26.0
-pandas==3.0.1
 propcache==0.4.1
 psutil==7.2.2
 pyarrow==23.0.1
