@@ -166,3 +166,21 @@ The next coding step is to scaffold `src/pipelines/` and `src/api/`, then implem
 - `predict_multimodal()`
 
 all routed through FastAPI service functions.
+
+
+# DVC/DagsHub
+ 
+ ### Daten herunterladen
+ dvc status
+ dvc pull
+
+dvc add data/import_daten.sql
+git add data/import_daten.sql.dvc
+git commit -m "fix: restore dvc tracking for sql data"
+dvc push
+git push origin master
+
+
+
+
+
