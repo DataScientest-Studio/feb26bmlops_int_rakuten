@@ -20,7 +20,7 @@ from transformers import (
     TrainingArguments,
 )
 
-from src.data.loaders import load_train_validation_csv
+from src.data.loaders import load_train_validation_sql
 from src.features.text_preprocess import compute_class_weights, fit_and_apply_label_encoder
 
 
@@ -60,14 +60,14 @@ def train_text_bert_from_csv(cfg):
         json.dump(full_cfg, cfg_file, indent=2)
 
     
-    train_csv_path = cfg.get("train_csv_path")
-    validation_csv_path = cfg.get("validation_csv_path")
-    if not train_csv_path or not validation_csv_path:
-        raise ValueError("Both 'train_csv_path' and 'validation_csv_path' are required")
+    step = cfg.get("step")
+    db_url = cfg.get("db_url")
+    if step is None or not db_url:
+        raise ValueError("Both 'step' and 'db_url' are required")
 
-    train_df, validation_df = load_train_validation_csv(
-        train_csv_path=train_csv_path,
-        validation_csv_path=validation_csv_path,
+    train_df, validation_df = load_train_validation_sql(
+        db_url=db_url,
+        step=step,
         text_column=text_column,
         label_column=label_column,
         sample_number=cfg.get("sample_number"),
@@ -232,14 +232,14 @@ def train_text_linear_svm_from_csv(cfg):
     with open(os.path.join(output_dir, "cfg.json"), "w", encoding="utf-8") as cfg_file:
         json.dump(full_cfg, cfg_file, indent=2)
 
-    train_csv_path = cfg.get("train_csv_path")
-    validation_csv_path = cfg.get("validation_csv_path")
-    if not train_csv_path or not validation_csv_path:
-        raise ValueError("Both 'train_csv_path' and 'validation_csv_path' are required")
+    step = cfg.get("step")
+    db_url = cfg.get("db_url")
+    if step is None or not db_url:
+        raise ValueError("Both 'step' and 'db_url' are required")
 
-    train_df, validation_df = load_train_validation_csv(
-        train_csv_path=train_csv_path,
-        validation_csv_path=validation_csv_path,
+    train_df, validation_df = load_train_validation_sql(
+        db_url=db_url,
+        step=step,
         text_column=text_column,
         label_column=label_column,
         sample_number=cfg.get("sample_number"),
