@@ -1,5 +1,7 @@
 import os
+import joblib
 
+from sklearn.pipeline import Pipeline
 from fastapi import FastAPI, HTTPException
 
 from src.api.schemas import (
@@ -16,6 +18,10 @@ from src.api.services import (
     train_text_linear_svm_service,
     train_text_service,
 )
+
+from src.models.mlflow_utils import (
+    train_and_log, 
+    evaluate_and_promote)
 
 from contextlib import asynccontextmanager
 from . import train, predict, jobs
@@ -72,6 +78,28 @@ def predict_text_endpoint(request: PredictTextRequest):
 def train_text_linear_svm_endpoint(request: TrainLinearSVMTextRequest):
     try:
         output = train_text_linear_svm_service(request.model_dump())
+
+
+        # MLflow Tracking
+        vectorizer = joblib.load(
+            os.path.join(output["output_dir"], "vectorizer.joblib")
+        )
+        model = joblib.load(os.path.join(output["output_dir"], "linear_svm.joblib"))
+
+        text_clf = Pipeline([("tfidf", vectorizer), ("svm", model)])
+
+        train_and_log(
+            model=text_clf,
+            model_name="SVM",
+            X_test=None,
+            y_test=None,
+            metrics_path=os.path.join(output["output_dir"], "eval_metrics.json"),
+        )
+
+        # Champion-Comparison
+        evaluate_and_promote(new_metrics=output, model_name="SVM")
+
+
         return TrainTextResponse(
             run_id=output["run_id"],
             output_dir=output["output_dir"],
