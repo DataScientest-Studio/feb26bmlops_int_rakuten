@@ -9,7 +9,6 @@ Provide a clean architecture where:
 - weighted fusion (text + image) is callable from code/API
 - prediction is exposed through the same API
 
-
 ## Timeline
 
 - **Phase 0 — Kick-off**: before **Feb 13, 2026**
@@ -27,8 +26,6 @@ Provide a clean architecture where:
 - baseline training and evaluation
 - training and prediction Python scripts
 - basic inference API with training and prediction endpoints
-
-
 
 ## Reference links
 
@@ -147,7 +144,6 @@ curl -X POST http://localhost:8000/predict/text \
     }'
 ```
 
-
 ## Migration plan (notebooks -> src)
 
 1. Move reusable text preprocessing + training logic from notebooks into `src/pipelines/text_pipeline.py`.
@@ -167,20 +163,70 @@ The next coding step is to scaffold `src/pipelines/` and `src/api/`, then implem
 
 all routed through FastAPI service functions.
 
+---
+
+---
 
 # DVC/DagsHub
- 
- ### Daten herunterladen
- dvc status
- dvc pull
 
+```ShellScript
+dvc remote list #wenn dagshub-projekt erscheint ok
+```
+
+# configure dagshub-project (doesn't come with git-project)
+
+```ShellScript
+dvc remote modify origin --local auth basic
+dvc remote modify origin --local user DEIN_DAGSHUB_USER
+dvc remote modify origin --local password DEIN_DAGSHUB_TOKEN
+```
+
+### Download data
+
+```ShellScript
+dvc status
+dvc pull
+```
+
+### dvc track, commit changes to dagshub \*.sql file:
+
+```ShellScript
 dvc add data/import_daten.sql
 git add data/import_daten.sql.dvc
 git commit -m "fix: restore dvc tracking for sql data"
 dvc push
 git push origin master
+```
 
+### Build postgres container
 
+```ShellScript
+docker compose up -d --build
+```
 
+### delete all docker project files (e.g. container, network, volume)
 
+```ShellScript
+docker compose down -v
+```
 
+### Logging, troubleshooting container
+
+```ShellScript
+docker logs pg_container
+docker exec -it pg_container psql -U postgres -d dst_db
+```
+
+### DB connection String
+
+#### Syntax: postgresql://username:password@localhost/dbname
+
+```ShellScript
+
+engine = create_engine('postgresql://postgres:postgres@localhost:5432/dst_db')
+```
+
+### DagsHub-URL verknüpfen (falls nicht in .dvc/config)
+
+ggf. dvc init
+dvc remote add -d origin https://dagshub.com/knanw/feb26bmlops_int_rakuten.dvc
