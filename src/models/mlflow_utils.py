@@ -17,21 +17,21 @@ def train_and_log(model, model_name, X_test, y_test, metrics_path):
     with mlflow.start_run(
         run_name=f"{model_name}_{pd.Timestamp.now().strftime('%Y%m%d')}"
     ):
-        # Metriken aus deiner eval_metrics.json laden
+        # load metrics from eval_metrics.json
         with open(metrics_path, "r") as f:
             metrics = json.load(f)
             metrics = {k: round(v, 4) for k, v in metrics.items()}
 
-        # Performance tracken
+        # performance tracking
         mlflow.log_metrics(metrics)
 
-        # Parameter tracken (z.B. Modell-Typ)
+        # parameter tracking(e.g. model type)
         mlflow.log_param("model_family", model_name)
 
-        # Artefakte (den ganzen Ordner models/text/...) speichern
+        # saving artifacts (entire folder models/text/...)
         mlflow.log_artifacts(os.path.dirname(metrics_path), artifact_path="model")
 
-        # Das Modell offiziell registrieren (Wichtig für die Registry!)
+        # register model officially (important for registry!)
         if "SVM" in model_name:
             mlflow.sklearn.log_model(
                 model, "model", registered_model_name="Rakuten_SVM"
@@ -48,7 +48,7 @@ def evaluate_and_promote(new_metrics, model_name):
     alias = "production"
 
     try:
-        # 1. Hole das aktuelle "Production" Modell
+        # 1. fetch current "Production" model
         model_version_details = client.get_model_version_by_alias(
             model_name_registry, alias
         )
@@ -56,16 +56,16 @@ def evaluate_and_promote(new_metrics, model_name):
         if not model_version_details:
             raise IndexError("No Production model found")
 
-        # 2. Hole die Metriken des alten Modells
+        # 2. get metrics from previous model
         old_run = client.get_run(model_version_details.run_id)
         old_f1 = old_run.data.metrics.get("eval_f1_macro", 0)
 
-        # 3. Vergleich
-        new_f1 = new_metrics.get("eval_f1_macro", 0)
+        # 3. comparison
+        new_f1 = round(new_metrics.get("eval_f1_macro", 0), 4)
 
         if new_f1 > old_f1:
             print(f"New model ({new_f1}) is better than old ({old_f1})!")
-            # Neue Version auf Production setzen
+            # mark new version as production
             latest_version = client.search_model_versions(
                 filter_string=f"name='{model_name_registry}'"
             )[0].version
