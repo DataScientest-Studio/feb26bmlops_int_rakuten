@@ -170,19 +170,24 @@ all routed through FastAPI service functions.
 # DVC/DagsHub
 
 ```ShellScript
-dvc remote list #wenn dagshub-projekt erscheint ok
+dvc remote list 
+#if dagshub-project is visible -> ok
 ```
 
-# configure dagshub-project (doesn't come with git-project)
+### create dagshub .dv/config.local file:
+```ShellScript
+dvc remote modify origin --local auth basic
+```
+
+### configure dagshub-project (doesn't come with git-project)
 
 ```ShellScript
 dvc remote modify origin --local auth basic
-dvc remote modify origin --local user DEIN_DAGSHUB_USER
-dvc remote modify origin --local password DEIN_DAGSHUB_TOKEN
+dvc remote modify origin --local user YOUR_DAGSHUB_USER
+dvc remote modify origin --local password YOUR_DAGSHUB_TOKEN
 ```
 
 ### Download data
-
 ```ShellScript
 dvc status
 dvc pull
