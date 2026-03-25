@@ -1,8 +1,33 @@
 version: '3.8'
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.7.0-python3.8
+  environment: &airflow-env
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@db:5432/dst_db
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__WEBSERVER__SECRET_KEY: "static_secret"
+    _AIRFLOW_DB_UPGRADE: "true"
+    AIRFLOW__WEBSERVER__LOG_FETCH_TIMEOUT: "30"
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+    AIRFLOW__LOGGING__REMOTE_LOGGING: "False"
+    _AIRFLOW_WWW_USER_CREATE: "true"
+    _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USERNAME:-airflow}
+    _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-airflow}
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./data:/opt/airflow/data  # central acces for csvs
+  user: "${AIRFLOW_UID:-50000}:0" # write rights
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    - db
+
 services:
   db:
     container_name: pg_container
-    image: postgres:latest
+    image: postgres:13 
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -12,6 +37,50 @@ services:
       - "5432:5432"
     volumes:
       - ./data/import_daten.sql:/docker-entrypoint-initdb.d/setup.sql
+      - ./data:/data 
       - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dst_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    command: db init
+    depends_on:
+      db:
+        condition: service_healthy
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    restart: always
+    ports:
+      - "8080:8080"
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    hostname: airflow-scheduler
+    restart: always
+    command: scheduler
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    
 volumes:
   pgdata:
