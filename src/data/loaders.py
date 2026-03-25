@@ -11,13 +11,12 @@ def load_train_validation_sql(
     seed=42,
 ):
     engine = create_engine(db_url)
-    query = text(
-        f'SELECT "{text_column}", "{label_column}" FROM product'
-        " WHERE step <= :step AND split = :split"
-    )
+    query = text(f'SELECT "{text_column}", "{label_column}" FROM product')
     with engine.connect() as conn:
-        train_df = pd.read_sql(query, conn, params={"step": step, "split": "train"})
-        validation_df = pd.read_sql(query, conn, params={"step": step, "split": "test"})
+        df = pd.read_sql(query, conn)
+
+    train_df = df.sample(frac=0.8, random_state=seed).reset_index(drop=True)
+    validation_df = df.drop(train_df.index).reset_index(drop=True)
 
     train_df[text_column] = train_df[text_column].astype(str)
     train_df[label_column] = train_df[label_column].astype(str)
