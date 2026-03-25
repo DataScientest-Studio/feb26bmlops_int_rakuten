@@ -8,8 +8,10 @@ import pandas as pd
 from mlflow.tracking import MlflowClient
 import dagshub
 
-# 1. Experiment definieren
+# 1. define mlflow experiment
 dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
+#mlflow.set_tracking_uri("http://localhost:5000") 
+
 mlflow.set_experiment("Rakuten-Text-Classification")
 
 
