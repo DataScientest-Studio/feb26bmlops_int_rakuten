@@ -20,7 +20,7 @@ from transformers import (
     TrainingArguments,
 )
 
-from src.data.loaders import load_train_validation_csv
+from src.data.loaders import load_train_validation_sql
 from src.features.text_preprocess import compute_class_weights, fit_and_apply_label_encoder
 
 
@@ -42,87 +42,86 @@ class WeightedTrainer(Trainer):
 
 
 def train_text_bert_from_csv(cfg):
-    experiment_id = cfg.get("experiment_id", datetime.now().strftime("%Y%m%d_%H%M%S"))
-    model_checkpoint = cfg.get("model_ckpt", "jhu-clsp/mmBERT-base")
-    text_column = cfg.get("text_col", "text_stripped")
-    label_column = cfg.get("label_col", "prdtypecode")
+    # --- all parameters in one place ---
+    # user-facing (defaults must match TrainTextRequest in schemas.py)
+    step          = cfg.get("step")
+    db_url        = cfg.get("db_url")
+    sample_number = cfg.get("sample_number")
+    model_ckpt    = cfg.get("model_ckpt", "jhu-clsp/mmBERT-base")
+    batch_size    = cfg.get("batch_size", 16)
+    epochs        = cfg.get("epochs", 2)
+    lr            = cfg.get("lr", 2e-5)
+    max_length    = cfg.get("max_length", 256)
+    # internal — not exposed via the API
+    experiment_id           = cfg.get("experiment_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    text_col                = cfg.get("text_col", "text_stripped")
+    label_col               = cfg.get("label_col", "prdtypecode")
+    seed                    = cfg.get("seed", 42)
+    truncation              = cfg.get("truncation", True)
+    padding                 = cfg.get("padding", False)
+    use_class_weights       = cfg.get("use_class_weights", True)
+    class_weight_method     = cfg.get("class_weight_method", "inv_freq")
+    class_weight_eps        = cfg.get("class_weight_eps", 1e-6)
+    eval_strategy           = cfg.get("eval_strategy", "epoch")
+    save_strategy           = cfg.get("save_strategy", "epoch")
+    save_total_limit        = cfg.get("save_total_limit", 2)
+    load_best_model_at_end  = cfg.get("load_best_model_at_end", True)
+    metric_for_best_model   = cfg.get("metric_for_best_model", "f1_macro")
+    greater_is_better       = cfg.get("greater_is_better", True)
+    logging_steps           = cfg.get("logging_steps", 100)
+    report_to               = cfg.get("report_to", "none")
+    lr_scheduler_type       = cfg.get("lr_scheduler_type", "linear")
+    fp16                    = cfg.get("fp16", False)
+    bf16                    = cfg.get("bf16", False)
+    label_smoothing_factor  = cfg.get("label_smoothing_factor", 0.0)
+    warmup_ratio            = cfg.get("warmup_ratio", 0.06)
+    weight_decay            = cfg.get("weight_decay", 0.01)
+    gradient_accumulation_steps = cfg.get("gradient_accumulation_steps", 1)
 
-    output_dir = cfg.get("output_dir")
-    if not output_dir:
-        output_dir = f"models/text/{model_checkpoint.split('/')[-1]}_{experiment_id}"
+    if not db_url:
+        raise ValueError("'db_url' is required")
+
+    output_dir = cfg.get("output_dir") or f"models/text/{model_ckpt.split('/')[-1]}_{experiment_id}"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save the full configuration for reproducibility
-    full_cfg = dict(cfg)
-    full_cfg["experiment_id"] = experiment_id
-    full_cfg["output_dir"] = output_dir
-    with open(os.path.join(output_dir, "cfg.json"), "w", encoding="utf-8") as cfg_file:
-        json.dump(full_cfg, cfg_file, indent=2)
+    with open(os.path.join(output_dir, "cfg.json"), "w", encoding="utf-8") as f:
+        json.dump({**cfg, "experiment_id": experiment_id, "output_dir": output_dir}, f, indent=2)
 
-    
-    train_csv_path = cfg.get("train_csv_path")
-    validation_csv_path = cfg.get("validation_csv_path")
-    if not train_csv_path or not validation_csv_path:
-        raise ValueError("Both 'train_csv_path' and 'validation_csv_path' are required")
-
-    train_df, validation_df = load_train_validation_csv(
-        train_csv_path=train_csv_path,
-        validation_csv_path=validation_csv_path,
-        text_column=text_column,
-        label_column=label_column,
-        sample_number=cfg.get("sample_number"),
-        seed=cfg.get("seed", 42),
+    train_df, validation_df = load_train_validation_sql(
+        db_url=db_url, step=step, text_column=text_col,
+        label_column=label_col, sample_number=sample_number, seed=seed,
     )
 
     train_df, validation_df, _, id_to_label, label_to_id = fit_and_apply_label_encoder(
-        train_df=train_df,
-        validation_df=validation_df,
-        label_column=label_column,
+        train_df=train_df, validation_df=validation_df, label_column=label_col,
     )
 
-    with open(os.path.join(output_dir, "label_map.json"), "w", encoding="utf-8") as label_file:
-        json.dump({"id2label": id_to_label, "label2id": label_to_id}, label_file, indent=2)
+    with open(os.path.join(output_dir, "label_map.json"), "w", encoding="utf-8") as f:
+        json.dump({"id2label": id_to_label, "label2id": label_to_id}, f, indent=2)
 
-    train_hf_dataset = Dataset.from_pandas(train_df[[text_column, "label"]].reset_index(drop=True))
-    validation_hf_dataset = Dataset.from_pandas(
-        validation_df[[text_column, "label"]].reset_index(drop=True)
-    )
+    train_hf_dataset = Dataset.from_pandas(train_df[[text_col, "label"]].reset_index(drop=True))
+    validation_hf_dataset = Dataset.from_pandas(validation_df[[text_col, "label"]].reset_index(drop=True))
 
-    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_ckpt, use_fast=False)
 
     def tokenize_batch(batch):
-        encoded = tokenizer(
-            batch[text_column],
-            truncation=cfg.get("truncation", True),
-            padding=cfg.get("padding", False),
-            max_length=cfg.get("max_length", 256),
-        )
+        encoded = tokenizer(batch[text_col], truncation=truncation, padding=padding, max_length=max_length)
         encoded.pop("token_type_ids", None)
         return encoded
 
-    train_tokenized = train_hf_dataset.map(tokenize_batch, batched=True, remove_columns=[text_column])
-    validation_tokenized = validation_hf_dataset.map(
-        tokenize_batch,
-        batched=True,
-        remove_columns=[text_column],
-    )
+    train_tokenized = train_hf_dataset.map(tokenize_batch, batched=True, remove_columns=[text_col])
+    validation_tokenized = validation_hf_dataset.map(tokenize_batch, batched=True, remove_columns=[text_col])
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     class_weights = None
-    use_class_weights = cfg.get("use_class_weights", True)
     if use_class_weights:
         class_weights = compute_class_weights(
-            train_df=train_df,
-            encoded_label_column="label",
-            method=cfg.get("class_weight_method", "inv_freq"),
-            epsilon=cfg.get("class_weight_eps", 1e-6),
+            train_df=train_df, encoded_label_column="label",
+            method=class_weight_method, epsilon=class_weight_eps,
         )
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        model_checkpoint,
-        num_labels=len(id_to_label),
-        id2label=id_to_label,
-        label2id=label_to_id,
+        model_ckpt, num_labels=len(id_to_label), id2label=id_to_label, label2id=label_to_id,
     )
 
     metric_accuracy = evaluate.load("accuracy")
@@ -133,41 +132,37 @@ def train_text_bert_from_csv(cfg):
         predictions = np.argmax(logits, axis=-1)
         return {
             "accuracy": metric_accuracy.compute(predictions=predictions, references=labels)["accuracy"],
-            "f1_macro": metric_f1.compute(
-                predictions=predictions,
-                references=labels,
-                average="macro",
-            )["f1"],
+            "f1_macro": metric_f1.compute(predictions=predictions, references=labels, average="macro")["f1"],
         }
 
     training_args_kwargs = {
         "output_dir": output_dir,
-        "seed": cfg.get("seed", 42),
-        "learning_rate": cfg.get("lr", 2e-5),
-        "per_device_train_batch_size": cfg.get("batch_size", 16),
-        "per_device_eval_batch_size": cfg.get("batch_size", 16),
-        "num_train_epochs": cfg.get("epochs", 2),
-        "weight_decay": cfg.get("weight_decay", 0.01),
-        "save_strategy": cfg.get("save_strategy", "epoch"),
-        "load_best_model_at_end": cfg.get("load_best_model_at_end", True),
-        "metric_for_best_model": cfg.get("metric_for_best_model", "f1_macro"),
-        "greater_is_better": cfg.get("greater_is_better", True),
-        "logging_steps": cfg.get("logging_steps", 100),
-        "report_to": cfg.get("report_to", "none"),
-        "lr_scheduler_type": cfg.get("lr_scheduler_type", "linear"),
-        "fp16": cfg.get("fp16", False),
-        "bf16": cfg.get("bf16", False),
-        "label_smoothing_factor": cfg.get("label_smoothing_factor", 0.0),
-        "gradient_accumulation_steps": cfg.get("gradient_accumulation_steps", 1),
-        "save_total_limit": cfg.get("save_total_limit", 2),
-        "warmup_ratio": cfg.get("warmup_ratio", 0.06),
+        "seed": seed,
+        "learning_rate": lr,
+        "per_device_train_batch_size": batch_size,
+        "per_device_eval_batch_size": batch_size,
+        "num_train_epochs": epochs,
+        "weight_decay": weight_decay,
+        "save_strategy": save_strategy,
+        "load_best_model_at_end": load_best_model_at_end,
+        "metric_for_best_model": metric_for_best_model,
+        "greater_is_better": greater_is_better,
+        "logging_steps": logging_steps,
+        "report_to": report_to,
+        "lr_scheduler_type": lr_scheduler_type,
+        "fp16": fp16,
+        "bf16": bf16,
+        "label_smoothing_factor": label_smoothing_factor,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "save_total_limit": save_total_limit,
+        "warmup_ratio": warmup_ratio,
     }
 
     training_args_signature = inspect.signature(TrainingArguments.__init__).parameters
     if "evaluation_strategy" in training_args_signature:
-        training_args_kwargs["evaluation_strategy"] = cfg.get("eval_strategy", "epoch")
+        training_args_kwargs["evaluation_strategy"] = eval_strategy
     elif "eval_strategy" in training_args_signature:
-        training_args_kwargs["eval_strategy"] = cfg.get("eval_strategy", "epoch")
+        training_args_kwargs["eval_strategy"] = eval_strategy
 
     training_args = TrainingArguments(**training_args_kwargs)
 
@@ -188,21 +183,21 @@ def train_text_bert_from_csv(cfg):
         trainer_kwargs["processing_class"] = tokenizer
 
     trainer = WeightedTrainer(**trainer_kwargs)
-
     train_output = trainer.train()
     evaluation_output = trainer.evaluate()
 
-    with open(os.path.join(output_dir, "eval_metrics.json"), "w", encoding="utf-8") as eval_file:
-        json.dump({key: float(value) for key, value in evaluation_output.items()}, eval_file, indent=2)
+    with open(os.path.join(output_dir, "eval_metrics.json"), "w", encoding="utf-8") as f:
+        json.dump({k: float(v) for k, v in evaluation_output.items()}, f, indent=2)
 
     train_metrics = train_output.metrics if hasattr(train_output, "metrics") else {}
-    with open(os.path.join(output_dir, "train_metrics.json"), "w", encoding="utf-8") as train_file:
-        json.dump({key: float(value) for key, value in train_metrics.items()}, train_file, indent=2)
+    with open(os.path.join(output_dir, "train_metrics.json"), "w", encoding="utf-8") as f:
+        json.dump({k: float(v) for k, v in train_metrics.items()}, f, indent=2)
 
     best_model_dir = os.path.join(output_dir, "best_model")
     os.makedirs(best_model_dir, exist_ok=True)
     trainer.save_model(best_model_dir)
     tokenizer.save_pretrained(best_model_dir)
+
 
     return {
         "output_dir": output_dir,
@@ -216,80 +211,73 @@ def train_text_bert_from_csv(cfg):
     }
 
 
-def train_text_linear_svm_from_csv(cfg):
-    experiment_id = cfg.get("experiment_id", datetime.now().strftime("%Y%m%d_%H%M%S"))
-    text_column = cfg.get("text_col", "text_stripped")
-    label_column = cfg.get("label_col", "prdtypecode")
+def train_text_linear_svm(cfg):
+    # --- all parameters in one place ---
+    # user-facing (defaults must match TrainLinearSVMTextRequest in schemas.py)
+    step          = cfg.get("step")
+    db_url        = cfg.get("db_url")
+    sample_number = cfg.get("sample_number")
+    c             = cfg.get("c", 2.0)
+    max_iter      = cfg.get("max_iter", 5000)
+    ngram_min     = cfg.get("ngram_min", 3)
+    ngram_max     = cfg.get("ngram_max", 5)
+    min_df        = cfg.get("min_df", 2)
+    max_features  = cfg.get("max_features", 150000)
+    # internal — not exposed via the API
+    experiment_id = cfg.get("experiment_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    text_col      = cfg.get("text_col", "text_stripped")
+    label_col     = cfg.get("label_col", "prdtypecode")
+    seed          = cfg.get("seed", 42)
+    class_weight  = cfg.get("class_weight", "balanced")
+    analyzer      = cfg.get("analyzer", "char")
 
-    output_dir = cfg.get("output_dir")
-    if not output_dir:
-        output_dir = f"models/text/linearSVM_{experiment_id}"
+    if not db_url:
+        raise ValueError("'db_url' is required")
+
+    output_dir = cfg.get("output_dir") or f"models/text/linearSVM_{experiment_id}"
     os.makedirs(output_dir, exist_ok=True)
 
-    full_cfg = dict(cfg)
-    full_cfg["experiment_id"] = experiment_id
-    full_cfg["output_dir"] = output_dir
-    with open(os.path.join(output_dir, "cfg.json"), "w", encoding="utf-8") as cfg_file:
-        json.dump(full_cfg, cfg_file, indent=2)
+    with open(os.path.join(output_dir, "cfg.json"), "w", encoding="utf-8") as f:
+        json.dump({**cfg, "experiment_id": experiment_id, "output_dir": output_dir}, f, indent=2)
 
-    train_csv_path = cfg.get("train_csv_path")
-    validation_csv_path = cfg.get("validation_csv_path")
-    if not train_csv_path or not validation_csv_path:
-        raise ValueError("Both 'train_csv_path' and 'validation_csv_path' are required")
-
-    train_df, validation_df = load_train_validation_csv(
-        train_csv_path=train_csv_path,
-        validation_csv_path=validation_csv_path,
-        text_column=text_column,
-        label_column=label_column,
-        sample_number=cfg.get("sample_number"),
-        seed=cfg.get("seed", 42),
+    train_df, validation_df = load_train_validation_sql(
+        db_url=db_url, step=step, text_column=text_col,
+        label_column=label_col, sample_number=sample_number, seed=seed,
     )
 
     train_df, validation_df, _, id_to_label, label_to_id = fit_and_apply_label_encoder(
-        train_df=train_df,
-        validation_df=validation_df,
-        label_column=label_column,
+        train_df=train_df, validation_df=validation_df, label_column=label_col,
     )
 
-    with open(os.path.join(output_dir, "label_map.json"), "w", encoding="utf-8") as label_file:
-        json.dump({"id2label": id_to_label, "label2id": label_to_id}, label_file, indent=2)
+    with open(os.path.join(output_dir, "label_map.json"), "w", encoding="utf-8") as f:
+        json.dump({"id2label": id_to_label, "label2id": label_to_id}, f, indent=2)
 
-    print(f"Training LinearSVM with C={cfg.get('c', 2.0)}, max_iter={cfg.get('max_iter', 5000)}, "
-          f"ngram_range=({cfg.get('ngram_min', 3)}, {cfg.get('ngram_max', 5)}), min_df={cfg.get('min_df', 2)}, max_features={cfg.get('max_features', 150000)}")
-    
+    print(f"Training LinearSVM: C={c}, max_iter={max_iter}, ngram=({ngram_min},{ngram_max}), "
+          f"min_df={min_df}, max_features={max_features}, analyzer={analyzer}")
+
     vectorizer = TfidfVectorizer(
-        ngram_range=(cfg.get("ngram_min", 3), cfg.get("ngram_max", 5)),
-        min_df=cfg.get("min_df", 2),
-        max_features=cfg.get("max_features", 150000),
-        analyzer="char"
+        ngram_range=(ngram_min, ngram_max), min_df=min_df,
+        max_features=max_features, analyzer=analyzer,
     )
-    x_train = vectorizer.fit_transform(train_df[text_column].astype(str).tolist())
-    x_validation = vectorizer.transform(validation_df[text_column].astype(str).tolist())
+    x_train = vectorizer.fit_transform(train_df[text_col].astype(str).tolist())
+    x_validation = vectorizer.transform(validation_df[text_col].astype(str).tolist())
 
-    model = LinearSVC(
-        C=cfg.get("c", 2.0),
-        class_weight=cfg.get("class_weight", "balanced"),
-        max_iter=cfg.get("max_iter", 5000),
-    )
+    model = LinearSVC(C=c, class_weight=class_weight, max_iter=max_iter)
     model.fit(x_train, train_df["label"].values)
 
     print("Training completed. Evaluating on validation set...")
 
-    validation_predictions = model.predict(x_validation)
-    eval_accuracy = float(accuracy_score(validation_df["label"].values, validation_predictions))
-    eval_f1_macro = float(
-        f1_score(validation_df["label"].values, validation_predictions, average="macro")
-    )
-    eval_metrics = {
-        "eval_accuracy": eval_accuracy,
-        "eval_f1_macro": eval_f1_macro,
-    }
-    with open(os.path.join(output_dir, "eval_metrics.json"), "w", encoding="utf-8") as eval_file:
-        json.dump(eval_metrics, eval_file, indent=2)
+    preds = model.predict(x_validation)
+    eval_accuracy = float(accuracy_score(validation_df["label"].values, preds))
+    eval_f1_macro = float(f1_score(validation_df["label"].values, preds, average="macro"))
+    eval_metrics  = {"eval_accuracy": eval_accuracy, "eval_f1_macro": eval_f1_macro}
+
+    with open(os.path.join(output_dir, "eval_metrics.json"), "w", encoding="utf-8") as f:
+        json.dump(eval_metrics, f, indent=2)
 
     joblib.dump(vectorizer, os.path.join(output_dir, "vectorizer.joblib"))
     joblib.dump(model, os.path.join(output_dir, "linear_svm.joblib"))
+
 
     return {
         "output_dir": output_dir,

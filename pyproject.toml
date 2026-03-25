@@ -28,9 +28,13 @@ dependencies = [
     "pandas",
     "mlflow>=3.10.1",
     "flake8",
-    "pytest"
+    "pytest",
 ]
 
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [tool.setuptools.packages.find]
-where = ["src", ".src/*"]
+where = ["."]
 exclude = ["tests", "tests.*"]
