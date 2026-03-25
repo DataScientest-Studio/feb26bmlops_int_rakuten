@@ -5,7 +5,7 @@ _DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/dst_db"
 
 
 class TrainTextRequest(BaseModel):
-    step: int
+    step: int | None = None
     db_url: str = _DEFAULT_DB_URL
     model_ckpt: str = "jhu-clsp/mmBERT-base"
     sample_number: float | None = 0.05
@@ -15,7 +15,7 @@ class TrainTextRequest(BaseModel):
 
 
 class TrainLinearSVMTextRequest(BaseModel):
-    step: int
+    step: int | None = None
     db_url: str = _DEFAULT_DB_URL
     sample_number: float = 1.0
     c: float = 2.0

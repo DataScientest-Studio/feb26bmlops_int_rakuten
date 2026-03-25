@@ -78,8 +78,8 @@ def train_text_bert_from_csv(cfg):
     weight_decay            = cfg.get("weight_decay", 0.01)
     gradient_accumulation_steps = cfg.get("gradient_accumulation_steps", 1)
 
-    if step is None or not db_url:
-        raise ValueError("Both 'step' and 'db_url' are required")
+    if not db_url:
+        raise ValueError("'db_url' is required")
 
     output_dir = cfg.get("output_dir") or f"models/text/{model_ckpt.split('/')[-1]}_{experiment_id}"
     os.makedirs(output_dir, exist_ok=True)
@@ -198,6 +198,7 @@ def train_text_bert_from_csv(cfg):
     trainer.save_model(best_model_dir)
     tokenizer.save_pretrained(best_model_dir)
 
+
     return {
         "output_dir": output_dir,
         "run_id": os.path.basename(output_dir),
@@ -230,8 +231,8 @@ def train_text_linear_svm(cfg):
     class_weight  = cfg.get("class_weight", "balanced")
     analyzer      = cfg.get("analyzer", "char")
 
-    if step is None or not db_url:
-        raise ValueError("Both 'step' and 'db_url' are required")
+    if not db_url:
+        raise ValueError("'db_url' is required")
 
     output_dir = cfg.get("output_dir") or f"models/text/linearSVM_{experiment_id}"
     os.makedirs(output_dir, exist_ok=True)
@@ -276,6 +277,7 @@ def train_text_linear_svm(cfg):
 
     joblib.dump(vectorizer, os.path.join(output_dir, "vectorizer.joblib"))
     joblib.dump(model, os.path.join(output_dir, "linear_svm.joblib"))
+
 
     return {
         "output_dir": output_dir,

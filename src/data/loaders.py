@@ -11,12 +11,19 @@ def load_train_validation_sql(
     seed=42,
 ):
     engine = create_engine(db_url)
-    query = text(f'SELECT "{text_column}", "{label_column}" FROM product')
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn)
+    if step is not None:
+        query = text(f'SELECT "{text_column}", "{label_column}" FROM product WHERE step = :step')
+        with engine.connect() as conn:
+            df = pd.read_sql(query, conn, params={"step": step})
+    else:
+        query = text(f'SELECT "{text_column}", "{label_column}" FROM product')
+        with engine.connect() as conn:
+            df = pd.read_sql(query, conn)
 
-    train_df = df.sample(frac=0.8, random_state=seed).reset_index(drop=True)
-    validation_df = df.drop(train_df.index).reset_index(drop=True)
+    train_df = df.sample(frac=0.8, random_state=seed)
+    validation_df = df.drop(train_df.index)
+    train_df = train_df.reset_index(drop=True)
+    validation_df = validation_df.reset_index(drop=True)
 
     train_df[text_column] = train_df[text_column].astype(str)
     train_df[label_column] = train_df[label_column].astype(str)
@@ -36,6 +43,7 @@ def load_train_validation_sql(
         validation_df = validation_df.sample(n=val_n, random_state=seed).reset_index(drop=True)
 
     return train_df, validation_df
+
 
 
 def load_train_validation_csv(
