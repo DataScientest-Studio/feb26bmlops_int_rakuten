@@ -210,7 +210,7 @@ def train_text_bert_from_csv(cfg):
     }
 
 
-def train_text_linear_svm_from_csv(cfg):
+def train_text_linear_svm(cfg):
     # --- all parameters in one place ---
     # user-facing (defaults must match TrainLinearSVMTextRequest in schemas.py)
     step          = cfg.get("step")

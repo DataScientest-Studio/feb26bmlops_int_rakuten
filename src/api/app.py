@@ -15,7 +15,7 @@ from src.api.schemas import (
     TrainTextResponse,
     HealthResponse,
 )
-from src.pipelines.text_pipeline import train_text_bert_from_csv, train_text_linear_svm_from_csv
+from src.pipelines.text_pipeline import train_text_bert_from_csv, train_text_linear_svm
 from src.models.predict_model import predict_text, predict_text_linear_svm
 from src.models.mlflow_utils import train_and_log, evaluate_and_promote
 from src.models.classifier import classifier_service
@@ -82,7 +82,7 @@ def predict_text_endpoint(request: PredictTextRequest):
 def train_linear_svm_endpoint(request: TrainLinearSVMTextRequest):
     try:
         cfg = {"experiment_id": datetime.now().strftime("%Y%m%d_%H%M%S"), **request.model_dump()}
-        output = train_text_linear_svm_from_csv(cfg)
+        output = train_text_linear_svm(cfg)
 
         vectorizer = joblib.load(os.path.join(output["output_dir"], "vectorizer.joblib"))
         model      = joblib.load(os.path.join(output["output_dir"], "linear_svm.joblib"))
