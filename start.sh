@@ -8,8 +8,8 @@ cd "$PROJECT_DIR"
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
 # ── 0. Tear down any existing stack + free required ports ─────────────────────
-log "Stopping any running services..."
-docker compose down --remove-orphans 2>/dev/null || true
+log "Stopping any running services and removing volumes for a fresh start..."
+docker compose down --volumes --remove-orphans 2>/dev/null || true
 
 log "Freeing required ports (5432, 8000, 8080, 8501)..."
 for port in 5432 8000 8080 8501; do
@@ -37,7 +37,7 @@ wait_for_url() {
 
 # ── 1. PostgreSQL ──────────────────────────────────────────────────────────────
 log "Starting PostgreSQL..."
-docker compose up -d --wait db
+docker compose up -d --wait --force-recreate db
 log "PostgreSQL is healthy."
 
 # ── 2. Airflow init (one-time job, blocks until complete) ──────────────────────
@@ -54,12 +54,12 @@ docker compose up -d airflow-webserver airflow-scheduler
 
 # ── 4. API ─────────────────────────────────────────────────────────────────────
 log "Building and starting API..."
-docker compose up -d --build api
+docker compose up -d --build --force-recreate api
 wait_for_url "http://localhost:8000/health" "FastAPI API" 24
 
 # ── 5. Streamlit ───────────────────────────────────────────────────────────────
 log "Building and starting Streamlit..."
-docker compose up -d --build streamlit
+docker compose up -d --build --force-recreate streamlit
 wait_for_url "http://localhost:8501/_stcore/health" "Streamlit" 24
 
 # ── Summary ────────────────────────────────────────────────────────────────────

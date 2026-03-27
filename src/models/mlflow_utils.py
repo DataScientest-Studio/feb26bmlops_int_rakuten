@@ -8,14 +8,26 @@ import pandas as pd
 from mlflow.tracking import MlflowClient
 import dagshub
 
-# 1. define mlflow experiment
-dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
-#mlflow.set_tracking_uri("http://localhost:5000") 
+_dagshub_initialized = False
 
-mlflow.set_experiment("Rakuten-Text-Classification")
+
+def _init_mlflow():
+    """Initialize DagsHub + MLflow once, only when a token is available."""
+    global _dagshub_initialized
+    if _dagshub_initialized:
+        return
+    token = os.getenv("DAGSHUB_USER_TOKEN", "")
+    if token:
+        dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "")
+    if tracking_uri:
+        mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment("Rakuten-Text-Classification")
+    _dagshub_initialized = True
 
 
 def train_and_log(model, model_name, X_test, y_test, metrics_path):
+    _init_mlflow()
     with mlflow.start_run(
         run_name=f"{model_name}_{pd.Timestamp.now().strftime('%Y%m%d')}"
     ):
@@ -45,6 +57,7 @@ def train_and_log(model, model_name, X_test, y_test, metrics_path):
 
 
 def evaluate_and_promote(new_metrics, model_name):
+    _init_mlflow()
     client = MlflowClient()
     model_name_registry = f"Rakuten_{model_name}"
     alias = "production"

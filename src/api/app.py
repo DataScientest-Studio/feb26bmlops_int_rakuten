@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sklearn.pipeline import Pipeline
 from fastapi import FastAPI, HTTPException
+from sqlalchemy import create_engine, text
 
 from src.api.schemas import (
     PredictLinearSVMTextRequest,
@@ -14,6 +15,7 @@ from src.api.schemas import (
     TrainTextRequest,
     TrainTextResponse,
     HealthResponse,
+    DbStatusResponse,
 )
 from src.pipelines.text_pipeline import train_text_bert_from_csv, train_text_linear_svm
 from src.models.predict_model import predict_text, predict_text_linear_svm
@@ -52,6 +54,27 @@ async def health():
         device=classifier_service.device,
         num_classes=classifier_service.num_classes,
     )
+
+
+@app.get("/db/status", response_model=DbStatusResponse, tags=["health"])
+async def db_status():
+    db_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db:5432/dst_db")
+    try:
+        engine = create_engine(db_url)
+        with engine.connect() as conn:
+            total = conn.execute(text("SELECT COUNT(*) FROM product")).scalar()
+            categories = conn.execute(text("SELECT COUNT(DISTINCT prdtypecode) FROM product")).scalar()
+            rows = conn.execute(
+                text("SELECT step, COUNT(*) as cnt FROM product GROUP BY step ORDER BY step")
+            ).fetchall()
+        return DbStatusResponse(
+            status="connected",
+            total_rows=total,
+            distinct_categories=categories,
+            rows_per_step={str(r[0] if r[0] is not None else "NULL"): r[1] for r in rows},
+        )
+    except Exception as exc:
+        return DbStatusResponse(status="error", detail=str(exc))
 
 
 @app.post("/train/text", response_model=TrainTextResponse)

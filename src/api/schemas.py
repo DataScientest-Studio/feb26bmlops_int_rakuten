@@ -120,3 +120,11 @@ class HealthResponse(BaseModel):
     model_path: str | None
     device: str
     num_classes: int
+
+
+class DbStatusResponse(BaseModel):
+    status: str  # "connected" | "error"
+    total_rows: int | None = None
+    distinct_categories: int | None = None
+    rows_per_step: dict | None = None
+    detail: str | None = None

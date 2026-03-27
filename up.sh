@@ -25,28 +25,24 @@ wait_for_url() {
 log "Stopping any running services..."
 docker compose down --remove-orphans 2>/dev/null || true
 
-log "Freeing required ports (5432, 8000, 8080, 8501)..."
-for port in 5432 8000 8080 8501; do
-  containers=$(docker ps --filter "publish=${port}" --format "{{.ID}}" 2>/dev/null || true)
-  if [ -n "$containers" ]; then
-    log "  Stopping container(s) on port ${port}: $(docker ps --filter "publish=${port}" --format "{{.Names}}" | tr '\n' ' ')"
-    echo "$containers" | xargs docker stop > /dev/null
-  fi
-done
-log "Ports clear."
-
 # ── 1. PostgreSQL ──────────────────────────────────────────────────────────────
 log "Starting PostgreSQL..."
 docker compose up -d --wait db
 log "PostgreSQL is healthy."
 
-# ── 2. Airflow init ────────────────────────────────────────────────────────────
-log "Initialising Airflow database..."
-if ! docker compose up --exit-code-from airflow-init airflow-init; then
-  log "ERROR: Airflow database init failed. Check: docker compose logs airflow-init"
-  exit 1
+# ── 2. Airflow init (skipped if already initialised) ──────────────────────────
+airflow_ready=$(docker compose exec -T db psql -U postgres -d dst_db -tAc \
+  "SELECT 1 FROM information_schema.tables WHERE table_name='ab_user';" 2>/dev/null || true)
+if [ "$airflow_ready" = "1" ]; then
+  log "Airflow database already initialised, skipping."
+else
+  log "Initialising Airflow database..."
+  if ! docker compose up --exit-code-from airflow-init airflow-init; then
+    log "ERROR: Airflow database init failed. Check: docker compose logs airflow-init"
+    exit 1
+  fi
+  log "Airflow database initialised."
 fi
-log "Airflow database initialised."
 
 # ── 3. Airflow webserver + scheduler ──────────────────────────────────────────
 log "Starting Airflow webserver and scheduler..."
