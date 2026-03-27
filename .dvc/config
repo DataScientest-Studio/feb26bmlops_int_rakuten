@@ -2,7 +2,3 @@
     remote = origin
 ['remote "origin"']
     url = https://dagshub.com/knanw/feb26bmlops_int_rakuten.dvc
-['remote "storage"']
-    url = https://dagshub.com/knanw/feb26bmlops_int_rakuten.dvc
-    user = knanw
-    password = b250f21028c3a607dc03e82b118e0e3f3ba7bf7e
