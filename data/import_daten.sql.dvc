@@ -1,5 +1,5 @@
 outs:
-- md5: 6eda05a3eed9f13eb8e9a839a9941357
-  size: 425784915
+- md5: 9dfd554176a2e5390ce0071bf86fbb03
+  size: 376730650
   hash: md5
   path: import_daten.sql
