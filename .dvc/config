@@ -1,7 +1,7 @@
 [core]
     remote = origin
 ['remote "origin"']
-    url = https://dagshub.com/knanw/feb26bmlops_int_rakuten.git
+    url = https://dagshub.com/knanw/feb26bmlops_int_rakuten.dvc
 ['remote "storage"']
     url = https://dagshub.com/knanw/feb26bmlops_int_rakuten.dvc
     user = knanw
