@@ -27,8 +27,9 @@ x-airflow-common: &airflow-common
 services:
   db:
     container_name: pg_container
-    image: postgres:13 
+    image: postgres:13
     restart: always
+    command: ["postgres", "-c", "listen_addresses=*"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -40,10 +41,11 @@ services:
       - ./data:/data 
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d dst_db"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -h localhost -U postgres -d dst_db"]
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 60
+      start_period: 30s
 
   airflow-init:
     <<: *airflow-common
@@ -81,6 +83,50 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-    
+
+  api:
+    build:
+      context: .
+      dockerfile: src/api/Dockerfile
+    container_name: rakuten-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/dst_db
+      DAGSHUB_USER_TOKEN: ${DAGSHUB_USER_TOKEN:-}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-}
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  streamlit:
+    build:
+      context: ./streamlit_app
+      dockerfile: Dockerfile
+    container_name: rakuten-streamlit
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://api:8000
+      AIRFLOW_BASE_URL: http://airflow-webserver:8080
+      AIRFLOW_USER: ${AIRFLOW_USERNAME:-airflow}
+      AIRFLOW_PASS: ${AIRFLOW_PASSWORD:-airflow}
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:
