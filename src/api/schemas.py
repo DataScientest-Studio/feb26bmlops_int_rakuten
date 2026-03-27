@@ -1,8 +1,10 @@
 from pydantic import BaseModel, Field
 from enum import Enum
+import os
 
-_DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/dst_db"
-
+_DEFAULT_DB_URL = os.getenv(
+    "DATABASE_URL", "postgresql+psycopg2://postgres:postgres@db:5432/dst_db"
+)
 
 class TrainTextRequest(BaseModel):
     step: int | None = None

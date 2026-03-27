@@ -1,5 +1,5 @@
 import threading
-from .schemas import JobStatus
+from src.api.schemas import JobStatus
 import uuid
 
 

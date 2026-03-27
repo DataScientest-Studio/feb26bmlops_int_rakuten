@@ -9,11 +9,12 @@ from sklearn.utils.class_weight import compute_class_weight
 
 from src.api.job_store import job_store
 from src.api.schemas import JobStatus, TrainRequest
-from .Train_Test import getImageLoader, prepare_model, get_optimizer, trainTestModel
-from .classifier import classifier_service
+from src.models.Train_Test import getImageLoader, prepare_model, get_optimizer, trainTestModel
+from src.models.classifier import classifier_service
 
-DATA_TRAIN = os.environ.get("DATA_TRAIN", "data/processed/train")
-DATA_TEST = os.environ.get("DATA_TEST", "data/processed/test")
+#TODO: create the two 
+DATA_TRAIN = os.environ.get("DATA_TRAIN", "data/image_db/train")
+DATA_TEST = os.environ.get("DATA_TEST", "data/image_db/test")
 
 
 class Trainer:

@@ -2,8 +2,8 @@ import os
 import re
 from fastapi import APIRouter
 
-from .schemas import TrainRequest, JobStatusResponse
-from .job_store import job_store
+from src.api.schemas import TrainRequest, JobStatusResponse
+from src.api.job_store import job_store
 from src.models.trainer import start_training
 
 router = APIRouter(prefix="/train", tags=["train"])

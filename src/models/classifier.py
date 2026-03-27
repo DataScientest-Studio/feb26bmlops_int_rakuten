@@ -4,7 +4,7 @@ import threading
 import torch
 import numpy as np
 
-from .image_infer import ImageClassifier
+from src.models.image_infer import ImageClassifier
 
 
 class ClassifierService:

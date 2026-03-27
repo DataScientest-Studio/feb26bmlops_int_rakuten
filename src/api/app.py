@@ -19,7 +19,7 @@ from src.pipelines.text_pipeline import train_text_bert_from_csv, train_text_lin
 from src.models.predict_model import predict_text, predict_text_linear_svm
 from src.models.mlflow_utils import train_and_log, evaluate_and_promote
 from src.models.classifier import classifier_service
-from . import train, predict, jobs
+from src.api import train, predict, jobs
 
 from dotenv import load_dotenv
 load_dotenv()
