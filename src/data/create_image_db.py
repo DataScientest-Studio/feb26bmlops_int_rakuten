@@ -42,13 +42,17 @@ class image_db:
         for file_name, label in train_df[[self.image_column, self.label_column]].values:
             # Copy file_name to train/ directory
             # print(f"Copying {file_name} to train/ with label {label}")
-            self.add_image(file_name, label)
+            self.add_image(file_name, 'train', label)
             # break # Remove this break after testing the first few rows
 
-    def add_image(self, file_name, label):
-        self.check_create_folder(label=label)
+        for file_name, label in val_df[[self.image_column, self.label_column]].values:
+            self.add_image(file_name, 'val', label)
+            # break # Remove this break after testing the first few rows
+
+    def add_image(self, file_name, folder, label):
+        self.check_create_folder(label=label, folder_path=os.path.join(self.output_folder, folder))
         input_path = os.path.join(self.input_folder, file_name)
-        output_path = os.path.join(self.output_folder, str(label), file_name)
+        output_path = os.path.join(self.output_folder, folder, str(label), file_name)
 
         if not os.path.exists(output_path):
             if os.path.exists(input_path):
@@ -61,7 +65,7 @@ class image_db:
             # print(f" -- Output file {output_path} already exists. Skipping copy.")
             pass
 
-    def check_create_folder(self, label, folder_path=None):
+    def check_create_folder(self, label, folder_path):
         if folder_path is None:
             folder_path = self.output_folder
 
