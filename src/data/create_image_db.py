@@ -66,9 +66,6 @@ class image_db:
             pass
 
     def check_create_folder(self, label, folder_path):
-        if folder_path is None:
-            folder_path = self.output_folder
-
         # print(f"Checking/creating folder: {folder_path}")
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
