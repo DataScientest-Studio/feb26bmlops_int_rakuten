@@ -13,7 +13,7 @@ import mlflow
 
 def log_existing_models(base_path="models/text"):
     dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
-
+    # mlflow.set_tracking_uri("http://localhost:5000")
     for folder_name in os.listdir(base_path):
         folder_path = os.path.join(base_path, folder_name)
         if not os.path.isdir(folder_path):

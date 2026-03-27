@@ -8,9 +8,19 @@ import pandas as pd
 from mlflow.tracking import MlflowClient
 import dagshub
 
-# 1. define mlflow experiment
-dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
-#mlflow.set_tracking_uri("http://localhost:5000") 
+# # # 1. define mlflow experiment
+repo_owner = os.getenv("DAGSHUB_USER", "andreiistudor")
+repo_name = os.getenv("DAGSHUB_REPO", "feb26bmlops_int_rakuten")
+token = os.getenv("DAGSHUB_TOKEN", None)
+
+if token is None:
+    dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
+else:
+    print(f"Using DagsHub token from environment variable: \n{repo_owner}\n{repo_name}\n{token}")
+    # os.environ["DAGSHUB_USER_TOKEN"] = token
+    dagshub.init(repo_owner=repo_owner, repo_name=repo_name, mlflow=True)
+
+# dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
 
 mlflow.set_experiment("Rakuten-Text-Classification")
 

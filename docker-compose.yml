@@ -15,6 +15,7 @@ x-airflow-common: &airflow-common
     _AIRFLOW_WWW_USER_CREATE: "true"
     _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USERNAME:-airflow}
     _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-airflow}
+    AIRFLOW_VAR_RAKUTEN_URL_IMAGE_RESNET50: "http://host.docker.internal:8000/train"
   volumes:
     - ./dags:/opt/airflow/dags
     - ./data:/opt/airflow/data  # central acces for csvs
@@ -81,6 +82,19 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-    
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: rakuten-api
+    env_file:
+      - .env
+    volumes:
+      - ./data:/api_dir/data
+      - ./models:/api_dir/models
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db  
 volumes:
   pgdata:
