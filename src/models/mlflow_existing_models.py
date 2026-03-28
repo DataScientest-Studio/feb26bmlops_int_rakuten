@@ -10,9 +10,13 @@ import mlflow
 # os.environ['MLFLOW_TRACKING_PASSWORD'] = 'Dein_Token'
 # mlflow.set_tracking_uri('https://dagshub.com/Nutzer/Repo.mlflow')
 
+repo_owner = os.getenv("DAGSHUB_USER", "andreiistudor")
+repo_name = os.getenv("DAGSHUB_REPO", "feb26bmlops_int_rakuten")
+token = os.getenv("DAGSHUB_TOKEN", None)
+
 
 def log_existing_models(base_path="models/text"):
-    dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
+    dagshub.init(repo_owner=repo_owner, repo_name=repo_name, mlflow=True)
     # mlflow.set_tracking_uri("http://localhost:5000")
     for folder_name in os.listdir(base_path):
         folder_path = os.path.join(base_path, folder_name)

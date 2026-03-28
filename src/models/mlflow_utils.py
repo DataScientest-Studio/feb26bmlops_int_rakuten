@@ -8,6 +8,16 @@ import mlflow.transformers
 import pandas as pd
 from mlflow.tracking import MlflowClient
 import dagshub
+import shutil
+
+LOCAL_BEST_DIR = "./models/latest"
+os.makedirs(LOCAL_BEST_DIR, exist_ok=True)
+
+BEST_MODEL_PATHS = {
+    "SVM": os.path.join(LOCAL_BEST_DIR, "svm_latest.model"),
+    "BERT": os.path.join(LOCAL_BEST_DIR, "bert_latest.model"),
+    "RESNET": os.path.join(LOCAL_BEST_DIR, "resnet50_latest.model")
+}
 
 # # # 1. define mlflow experiment
 repo_owner = os.getenv("DAGSHUB_USER", "andreiistudor")
@@ -23,7 +33,7 @@ else:
 
 # dagshub.init(repo_owner="knanw", repo_name="feb26bmlops_int_rakuten", mlflow=True)
 
-mlflow.set_experiment("Rakuten-Text-Classification")
+mlflow.set_experiment("Rakuten-Classification")
 
 
 def train_and_log(model, model_name, X_test, y_test, metrics_path):
@@ -55,7 +65,7 @@ def train_and_log(model, model_name, X_test, y_test, metrics_path):
             )
 
 
-def evaluate_and_promote(new_metrics, model_name):
+def evaluate_and_promote(new_metrics, model_name, metrics_path):
     client = MlflowClient()
     model_name_registry = f"Rakuten_{model_name}"
     alias = "production"
@@ -80,11 +90,11 @@ def evaluate_and_promote(new_metrics, model_name):
             print(f"New model ({new_f1}) is better than old ({old_f1})!")
             # mark new version as production
             latest_version = client.search_model_versions(
-                filter_string=f"name='{model_name_registry}'"
-            )[0].version
+                filter_string=f"name='{model_name_registry}'")[0].version
             client.set_registered_model_alias(
-                model_name_registry, alias, latest_version
-            )
+                model_name_registry, alias, latest_version)
+
+            update_local_best_file(model_name, metrics_path)
         else:
             print(f"Old model remains champion (Old F1: {old_f1}, New F1: {new_f1}).")
 
@@ -97,12 +107,11 @@ def evaluate_and_promote(new_metrics, model_name):
             )
             if all_versions:
                 first_version = max(all_versions, key=lambda v: int(v.version))
-                client.set_registered_model_alias(
-                    model_name_registry, alias, first_version.version
-                )
-                print(
-                    f"Model {model_name_registry} version {first_version.version} is now Production."
-                )
+                client.set_registered_model_alias(model_name_registry, alias, first_version.version)
+
+                update_local_best_file(model_name, metrics_path)
+
+                print(f"Model {model_name_registry} version {first_version.version} is now Production.")
         except Exception as inner_e:
             print(f"Error. Model never registered. {inner_e}")
 
@@ -159,3 +168,34 @@ def log_image_training_run(
         )
 
     return logged_metrics
+
+def update_local_best_file(model_name, source_path):
+    """Kopiert den Inhalt des aktuellen Trainings-Ordners in den 'latest' Pfad."""
+    # Wir suchen den passenden Key (SVM, BERT oder RESNET)
+    key = "SVM" if "SVM" in model_name.upper() else "BERT" if "BERT" in model_name.upper() else "RESNET"
+    target = BEST_MODEL_PATHS.get(key)
+
+    if target:
+            source_dir = os.path.dirname(os.path.abspath(source_path))
+            
+            # Sicherheits-Check: Existiert der Quellordner überhaupt?
+            if not os.path.exists(source_dir):
+                print(f"FAILED: Source directory {source_dir} not found!")
+                return
+
+            # Falls das Ziel bereits existiert (als Datei oder Ordner), löschen
+            if os.path.exists(target):
+                if os.path.isdir(target):
+                    shutil.rmtree(target)
+                else:
+                    os.remove(target)
+            
+            try:
+                # Kopiert den kompletten Inhalt von source_dir in den neuen Ordner target
+                shutil.copytree(source_dir, target)
+                print(f"--- SUCCESS: {key} updated. Files are now in: {target} ---")
+                
+                # Kontrolle: Was ist im Ordner gelandet?
+                print(f"Files copied: {os.listdir(target)}")
+            except Exception as e:
+                print(f"Error during copying: {e}")

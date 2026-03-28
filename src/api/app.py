@@ -86,14 +86,16 @@ def train_linear_svm_endpoint(request: TrainLinearSVMTextRequest):
 
         vectorizer = joblib.load(os.path.join(output["output_dir"], "vectorizer.joblib"))
         model      = joblib.load(os.path.join(output["output_dir"], "linear_svm.joblib"))
+        metrics_path = os.path.join(output["output_dir"], "eval_metrics.json")
+
         train_and_log(
             model=Pipeline([("tfidf", vectorizer), ("svm", model)]),
             model_name="SVM",
             X_test=None,
             y_test=None,
-            metrics_path=os.path.join(output["output_dir"], "eval_metrics.json"),
+            metrics_path=metrics_path,
         )
-        evaluate_and_promote(new_metrics=output, model_name="SVM")
+        evaluate_and_promote(new_metrics=output, model_name="SVM", metrics_path=metrics_path)
 
         return TrainTextResponse(
             run_id=output["run_id"],
