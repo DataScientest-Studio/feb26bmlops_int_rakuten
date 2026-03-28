@@ -15,7 +15,7 @@ x-airflow-common: &airflow-common
     _AIRFLOW_WWW_USER_CREATE: "true"
     _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USERNAME:-airflow}
     _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-airflow}
-    AIRFLOW_VAR_RAKUTEN_URL_IMAGE_RESNET50: "http://host.docker.internal:8000/train"
+    AIRFLOW_VAR_RAKUTEN_URL_IMAGE_RESNET50: "http://host.docker.internal:8000/train/sync"
   volumes:
     - ./dags:/opt/airflow/dags
     - ./data:/opt/airflow/data  # central acces for csvs
@@ -87,6 +87,7 @@ services:
       context: .
       dockerfile: Dockerfile.api
     container_name: rakuten-api
+    shm_size: "2gb"
     env_file:
       - .env
     volumes:
@@ -96,5 +97,12 @@ services:
       - "8000:8000"
     depends_on:
       - db  
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 volumes:
   pgdata:

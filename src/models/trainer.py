@@ -144,3 +144,16 @@ def start_training(job_id: str, request: TrainRequest, session_folder: str, sess
         daemon=True,
     )
     thread.start()
+
+
+def run_training_sync(request: TrainRequest, session_folder: str, session_name: str) -> str:
+    """Run image training synchronously and return output details."""
+    trainer = Trainer(request, session_folder, session_name)
+    trainer.setup()
+    final_model_path = trainer.train()
+    csv_log = os.path.join(session_folder, f"{session_name}.csv")
+    return {
+        "final_model_path": final_model_path,
+        "csv_log": csv_log,
+        "model": trainer.model,
+    }

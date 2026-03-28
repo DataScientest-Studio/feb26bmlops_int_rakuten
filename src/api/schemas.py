@@ -88,6 +88,41 @@ class TrainRequest(BaseModel):
     cm_every: int = Field(default=5, ge=1)
 
 
+class TrainImageSyncRequest(TrainRequest):
+    step: int | None = None
+    use_transfer_learning: bool = True
+
+
+class TrainImageSyncResponse(BaseModel):
+    status: str
+    session_name: str
+    session_folder: str
+    final_model_path: str
+    resume_used: str | None = None
+
+
+class ImageDbResetRequest(BaseModel):
+    output_folder: str = "data/image_db"
+
+
+class ImageDbUpdateRequest(BaseModel):
+    step: int
+    db_url: str = _DEFAULT_DB_URL
+    sample_number: float | None = None
+    image_column: str = "image_file"
+    label_column: str = "prdtypecode"
+    input_folder: str = "data/image_data"
+    output_folder: str = "data/image_db"
+
+
+class ImageDbResponse(BaseModel):
+    status: str
+    output_folder: str
+    step: int | None = None
+    train_file_count: int = 0
+    val_file_count: int = 0
+
+
 class JobStatus(str, Enum):
     pending = "pending"
     running = "running"

@@ -24,6 +24,10 @@ def clean_preprocess(preprocess):
 
 
 def getImageLoader(train_path='../image_scaled_train', test_path='../image_scaled_test', save_mapping_to=None):
+    batch_size = int(os.environ.get("IMG_BATCH_SIZE", "128"))
+    num_workers = int(os.environ.get("IMG_NUM_WORKERS", "0"))
+    pin_memory = torch.cuda.is_available()
+
     transform = v2.Compose([
         v2.ToImage(),
         v2.RandomResizedCrop(size=(224, 224), scale=(0.9, 1.0), antialias=True),
@@ -52,8 +56,25 @@ def getImageLoader(train_path='../image_scaled_train', test_path='../image_scale
             json.dump(train_dataset.classes, f)
         print(f"Class mapping saved to classes.json")
 
-    dataloader_train = DataLoader(train_dataset, batch_size=256, shuffle=True, num_workers=4, pin_memory=True)
-    dataloader_test = DataLoader(test_dataset, batch_size=256, shuffle=True, num_workers=4, pin_memory=True)
+    dataloader_train = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
+    dataloader_test = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
+
+    print(
+        f"DataLoader config: batch_size={batch_size}, "
+        f"num_workers={num_workers}, pin_memory={pin_memory}"
+    )
 
     return dataloader_train, dataloader_test
 

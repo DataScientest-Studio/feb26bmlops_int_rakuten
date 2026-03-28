@@ -1,19 +1,20 @@
 import os
-from loaders import load_train_validation_sql
+try:
+    from src.data.loaders import load_train_validation_sql
+except ImportError:
+    from loaders import load_train_validation_sql
 
 class image_db:
     '''parse the sql/df data and copy the image files to the corresponding directory
     '''
     def __init__(self, db_url, step=0, 
                  image_column='image_file', label_column='prdtypecode', sample=None, 
-                 input_folder='data/image_data', output_folder = 'data/image_db',
-                 seed=42):
+                 input_folder='data/image_data', output_folder = 'data/image_db'):
         self.db_url = db_url
         self.step = step
         self.image_column = image_column
         self.label_column = label_column
         self.sample = sample
-        self.seed = seed
         self.output_folder = output_folder
         self.input_folder = input_folder
 
@@ -25,8 +26,7 @@ class image_db:
             step=self.step,
             text_column=self.image_column,
             label_column=self.label_column,
-            sample_number=self.sample,
-            seed=self.seed
+            sample_number=self.sample
             )
 
         # Here you would add code to copy the image files based on the text_column values
@@ -77,17 +77,36 @@ class image_db:
         else:
             print("No label provided, skipping label-specific folder creation.")
             pass
+
+
+def update_image_db_for_step(
+    db_url,
+    step,
+    image_column='image_file',
+    label_column='prdtypecode',
+    sample=None,
+    input_folder='data/image_data',
+    output_folder='data/image_db'
+):
+    """Convenience wrapper for rebuilding/augmenting image_db at a given step."""
+    db_builder = image_db(
+        db_url=db_url,
+        step=step,
+        image_column=image_column,
+        label_column=label_column,
+        sample=sample,
+        input_folder=input_folder,
+        output_folder=output_folder
+    )
+    db_builder.add_step(step=step)
     
 
 if __name__ == "__main__":
     _DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/dst_db"
-    im_db = image_db(
+    update_image_db_for_step(
         db_url=_DEFAULT_DB_URL,
-        step=11,
+        step=1,
         image_column='image_file',
         label_column='prdtypecode',
         sample=0.8,
-        seed=42,
     )
-
-    im_db.add_step(step=1)

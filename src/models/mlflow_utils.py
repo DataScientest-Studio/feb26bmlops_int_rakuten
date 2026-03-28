@@ -2,6 +2,7 @@ import json
 import os
 
 import mlflow
+import mlflow.pytorch
 import mlflow.sklearn
 import mlflow.transformers
 import pandas as pd
@@ -104,3 +105,57 @@ def evaluate_and_promote(new_metrics, model_name):
                 )
         except Exception as inner_e:
             print(f"Error. Model never registered. {inner_e}")
+
+
+def log_image_training_run(
+    model,
+    model_name,
+    session_folder,
+    csv_log,
+    final_model_path,
+    use_transfer_learning,
+    resume_path,
+    step=None,
+):
+    """Log image training outputs to MLflow/DagsHub and return logged metrics."""
+    run_name = f"IMAGE_{model_name}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
+    registered_model_name = f"Rakuten_IMAGE_{str(model_name).upper()}"
+    logged_metrics = {}
+
+    with mlflow.start_run(run_name=run_name):
+        mlflow.log_param("model_family", "IMAGE")
+        mlflow.log_param("image_model", model_name)
+        mlflow.log_param("use_transfer_learning", bool(use_transfer_learning))
+        mlflow.log_param("resume_used", bool(resume_path))
+        if step is not None:
+            mlflow.log_param("step", int(step))
+
+        if csv_log and os.path.exists(csv_log):
+            history = pd.read_csv(csv_log, sep=";")
+            if not history.empty:
+                latest = history.iloc[-1]
+                metrics = {
+                    "train_loss": float(latest.get("train_loss", 0.0)),
+                    "val_loss": float(latest.get("val_loss", 0.0)),
+                    "train_accuracy": float(latest.get("train_accuracy", 0.0)),
+                    "val_accuracy": float(latest.get("val_accuracy", 0.0)),
+                    "train_f1_score": float(latest.get("train_f1_score", 0.0)),
+                    "val_f1_score": float(latest.get("val_f1_score", 0.0)),
+                    "train_f1_macro": float(latest.get("train_f1_macro", 0.0)),
+                    "eval_f1_macro": float(latest.get("val_f1_macro", 0.0)),
+                }
+                mlflow.log_metrics(metrics)
+                logged_metrics = metrics
+
+        if session_folder and os.path.isdir(session_folder):
+            mlflow.log_artifacts(session_folder, artifact_path="model")
+        elif final_model_path and os.path.exists(final_model_path):
+            mlflow.log_artifact(final_model_path, artifact_path="model")
+
+        mlflow.pytorch.log_model(
+            pytorch_model=model,
+            name="model",
+            registered_model_name=registered_model_name,
+        )
+
+    return logged_metrics
