@@ -6,5 +6,5 @@ dagshub:
 	echo "DAGSHUB_USER=$(dagshub_user)" >> .env.local
 
 setenv:
-	echo "UID=$$(id -u)" >> .env.local
-	echo "GID=$$(id -g)" >> .env.local
+	echo "UID=$$(id -u)" >> .env
+	echo "GID=$$(id -g)" >> .env

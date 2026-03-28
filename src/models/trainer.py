@@ -36,7 +36,7 @@ class Trainer:
     def setup(self):
         """Load data, model, optimizer, scheduler, criterion."""
         os.makedirs(IMAGE_DIR, exist_ok=True)
-        mapping_save_path = os.environ.get("CLASSES_JSON_PATH", "models/classes.json")
+        mapping_save_path = os.path.join(IMAGE_DIR, "classes.json")
         self.dataloader_train, self.dataloader_test = getImageLoader(
             train_path=DATA_TRAIN,
             test_path=DATA_TEST,

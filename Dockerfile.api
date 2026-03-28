@@ -1,8 +1,5 @@
 FROM python:3.12-slim
 
-# The installer requires curl (and certificates) to download the release archive
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
-
 ENV UV_CACHE_DIR=/api_dir/.cache
 ENV PATH="/usr/local/bin:$PATH"
 
