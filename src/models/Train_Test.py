@@ -230,7 +230,6 @@ def trainTestModel(model, epochs, dataloader_train, dataloader_test,
 
     best_val_loss = float('inf')
     epochs_no_improve = 0
-    best_model_path = None
 
     for epoch in range(epochs):
         start_time = time.time()
@@ -333,19 +332,6 @@ def trainTestModel(model, epochs, dataloader_train, dataloader_test,
                 current_lr_str = ",".join([str(pg['lr']) for pg in optimizer.param_groups])
             write_log.write(f"{epoch+1};{avg_loss:.3f};{val_loss:.3f};{train_acc:.3f};{val_acc:.3f};{train_f1:.3f};{val_f1:.3f};{macro_train_f1:.3f};{macro_val_f1:.3f};{current_lr_str};{epoch_time:.1f};{best_val_loss:.3f};{epochs_no_improve}\n")
             write_log.flush()
-
-        # Best model save
-        if val_loss < best_val_loss or (epoch + 1) % cm_every == 0:
-            if best_model_path is not None and os.path.exists(best_model_path):
-                if (epoch + 1) % cm_every > 1:
-                    try:
-                        os.remove(best_model_path)
-                    except OSError:
-                        pass
-            base_name = os.path.splitext(log_file)[0] if log_file else "best_model"
-            best_model_path = f"{base_name}_epoch_{epoch+1:02d}.model"
-            torch.save(model.state_dict(), best_model_path)
-            print(f"\t--> Best model saved to {best_model_path}")
 
         # Early stopping
         if val_loss < best_val_loss:

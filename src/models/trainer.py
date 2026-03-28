@@ -1,5 +1,4 @@
 import os
-import shutil
 import threading
 import torch
 import torch.nn as nn
@@ -17,11 +16,14 @@ DATA_TRAIN = os.environ.get("DATA_TRAIN", "data/image_db/train")
 DATA_TEST = os.environ.get("DATA_TEST", "data/image_db/test")
 
 
+IMAGE_DIR = os.path.dirname(
+    os.environ.get("BEST_MODEL_PATH", "models/image/resnet50_latest.model")
+)
+
+
 class Trainer:
-    def __init__(self, request: TrainRequest, session_folder: str, session_name: str):
+    def __init__(self, request: TrainRequest):
         self.request = request
-        self.session_folder = session_folder
-        self.session_name = session_name
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = None
         self.preprocess = None
@@ -33,7 +35,8 @@ class Trainer:
 
     def setup(self):
         """Load data, model, optimizer, scheduler, criterion."""
-        mapping_save_path = os.path.join(self.session_folder, "classes.json")
+        os.makedirs(IMAGE_DIR, exist_ok=True)
+        mapping_save_path = os.environ.get("CLASSES_JSON_PATH", "models/classes.json")
         self.dataloader_train, self.dataloader_test = getImageLoader(
             train_path=DATA_TRAIN,
             test_path=DATA_TEST,
@@ -81,7 +84,8 @@ class Trainer:
 
     def train(self, on_epoch_end=None):
         """Run training. Blocks until complete."""
-        csv_log = os.path.join(self.session_folder, f"{self.session_name}.csv")
+        model_name = self.request.model_type.value
+        self.csv_log = os.path.join(IMAGE_DIR, f"{model_name}.csv")
 
         trainTestModel(
             model=self.model,
@@ -91,30 +95,28 @@ class Trainer:
             preprocess=self.preprocess,
             optimizer=self.optimizer,
             scheduler=self.scheduler,
-            log_file=csv_log,
+            log_file=self.csv_log,
             device=self.device,
             criterion=self.criterion,
             cm_every=self.request.cm_every,
             on_epoch_end=on_epoch_end,
         )
 
-        final_path = os.path.join(self.session_folder, f"{self.session_name}_final.model")
+        final_path = os.environ.get(
+            "BEST_MODEL_PATH",
+            os.path.join(IMAGE_DIR, f"{model_name}_latest.model"),
+        )
+        os.makedirs(os.path.dirname(os.path.abspath(final_path)), exist_ok=True)
         torch.save(self.model.state_dict(), final_path)
+        print(f"[Trainer] Model saved to {final_path}")
 
-        # Copy to BEST_MODEL_PATH and reload classifier
-        best_model_path = os.environ.get("BEST_MODEL_PATH")
-        if best_model_path:
-            shutil.copy2(final_path, best_model_path)
-            print(f"[Trainer] Copied {final_path} -> {best_model_path}")
-            classifier_service.load()
-            print("[Trainer] Classifier reloaded with new model")
-        else:
-            print("[Trainer] BEST_MODEL_PATH not set — skipping model promotion")
+        classifier_service.load()
+        print("[Trainer] Classifier reloaded with new model")
 
         return final_path
 
 
-def _run_training(job_id: str, request: TrainRequest, session_folder: str, session_name: str):
+def _run_training(job_id: str, request: TrainRequest):
     job_store.update_job(job_id, status=JobStatus.running)
 
     def on_epoch_end(epoch, train_loss, val_loss, val_acc, val_f1):
@@ -128,7 +130,7 @@ def _run_training(job_id: str, request: TrainRequest, session_folder: str, sessi
         )
 
     try:
-        trainer = Trainer(request, session_folder, session_name)
+        trainer = Trainer(request)
         trainer.setup()
         trainer.train(on_epoch_end=on_epoch_end)
         job_store.update_job(job_id, status=JobStatus.done)
@@ -137,23 +139,22 @@ def _run_training(job_id: str, request: TrainRequest, session_folder: str, sessi
         raise
 
 
-def start_training(job_id: str, request: TrainRequest, session_folder: str, session_name: str):
+def start_training(job_id: str, request: TrainRequest):
     thread = threading.Thread(
         target=_run_training,
-        args=(job_id, request, session_folder, session_name),
+        args=(job_id, request),
         daemon=True,
     )
     thread.start()
 
 
-def run_training_sync(request: TrainRequest, session_folder: str, session_name: str) -> str:
+def run_training_sync(request: TrainRequest) -> dict:
     """Run image training synchronously and return output details."""
-    trainer = Trainer(request, session_folder, session_name)
+    trainer = Trainer(request)
     trainer.setup()
     final_model_path = trainer.train()
-    csv_log = os.path.join(session_folder, f"{session_name}.csv")
     return {
         "final_model_path": final_model_path,
-        "csv_log": csv_log,
+        "csv_log": trainer.csv_log,
         "model": trainer.model,
     }

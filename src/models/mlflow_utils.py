@@ -119,7 +119,6 @@ def evaluate_and_promote(new_metrics, model_name, metrics_path):
 def log_image_training_run(
     model,
     model_name,
-    session_folder,
     csv_log,
     final_model_path,
     use_transfer_learning,
@@ -155,10 +154,9 @@ def log_image_training_run(
                 }
                 mlflow.log_metrics(metrics)
                 logged_metrics = metrics
+                mlflow.log_artifact(csv_log, artifact_path="model")
 
-        if session_folder and os.path.isdir(session_folder):
-            mlflow.log_artifacts(session_folder, artifact_path="model")
-        elif final_model_path and os.path.exists(final_model_path):
+        if final_model_path and os.path.exists(final_model_path):
             mlflow.log_artifact(final_model_path, artifact_path="model")
 
         mlflow.pytorch.log_model(

@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8'
 
 x-airflow-common: &airflow-common
   image: apache/airflow:2.7.0-python3.8
@@ -15,7 +15,7 @@ x-airflow-common: &airflow-common
     _AIRFLOW_WWW_USER_CREATE: "true"
     _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USERNAME:-airflow}
     _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-airflow}
-    AIRFLOW_VAR_RAKUTEN_URL_IMAGE_RESNET50: "http://host.docker.internal:8000/train/sync"
+    AIRFLOW_VAR_RAKUTEN_URL_IMAGE_RESNET50: "http://api:8000/train/sync"
   volumes:
     - ./dags:/opt/airflow/dags
     - ./data:/opt/airflow/data  # central acces for csvs
@@ -90,6 +90,15 @@ services:
     shm_size: "2gb"
     env_file:
       - .env
+      - .env.local
+    environment:
+      HOME: /tmp
+      USER: appuser
+      LOGNAME: appuser
+      UV_CACHE_DIR: /tmp/.cache/uv
+      XDG_CACHE_HOME: /tmp/.cache
+      TORCHINDUCTOR_CACHE_DIR: /tmp/.cache/torchinductor
+    user: "${UID}:${GID}"
     volumes:
       - ./data:/api_dir/data
       - ./models:/api_dir/models

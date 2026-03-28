@@ -95,8 +95,6 @@ class TrainImageSyncRequest(TrainRequest):
 
 class TrainImageSyncResponse(BaseModel):
     status: str
-    session_name: str
-    session_folder: str
     final_model_path: str
     resume_used: str | None = None
 
