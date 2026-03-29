@@ -8,7 +8,7 @@ def load_train_validation_sql(
     text_column,
     label_column,
     sample_number=None,
-    seed=42,
+    seed=42
 ):
     engine = create_engine(db_url)
     if step is not None:
@@ -16,7 +16,7 @@ def load_train_validation_sql(
         with engine.connect() as conn:
             df = pd.read_sql(query, conn, params={"step": step})
     else:
-        query = text(f'SELECT "{text_column}", "{label_column}" FROM product')
+        query = text(f'SELECT "{text_column}", "{label_column}", "step" FROM product')
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 

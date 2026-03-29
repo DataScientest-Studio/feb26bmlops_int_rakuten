@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
-from .job_store import job_store
-from .schemas import JobStatusResponse
+from src.api.job_store import job_store
+from src.api.schemas import JobStatusResponse
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 

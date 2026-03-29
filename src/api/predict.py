@@ -18,9 +18,6 @@ async def predict_single(
     Run inference on a single uploaded image.
     Returns top-k class predictions with confidence scores.
     """
-    if not classifier_service.is_loaded():
-        raise HTTPException(status_code=503, detail="Model not loaded")
-
     try:
         contents = await file.read()
         img = Image.open(io.BytesIO(contents)).convert("RGB")
@@ -29,6 +26,8 @@ async def predict_single(
 
     try:
         result = classifier_service.predict_single(img, top_k=top_k)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=f"Model not loaded: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference error: {e}")
 
@@ -41,9 +40,6 @@ async def predict_batch(files: list[UploadFile] = File(...)):
     Run inference on multiple uploaded images.
     Saves them to a temp location, runs batch inference, cleans up.
     """
-    if not classifier_service.is_loaded():
-        raise HTTPException(status_code=503, detail="Model not loaded")
-
     import tempfile, os
 
     tmp_paths = []
@@ -57,6 +53,8 @@ async def predict_batch(files: list[UploadFile] = File(...)):
                 tmp_paths.append(tmp.name)
 
         results = classifier_service.predict_batch(tmp_paths)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=f"Model not loaded: {e}")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Batch inference error: {e}")

@@ -1,8 +1,10 @@
 from pydantic import BaseModel, Field
 from enum import Enum
+import os
 
-_DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/dst_db"
-
+_DEFAULT_DB_URL = os.getenv(
+    "DATABASE_URL", "postgresql+psycopg2://postgres:postgres@db:5432/dst_db"
+)
 
 class TrainTextRequest(BaseModel):
     step: int | None = None
@@ -84,6 +86,39 @@ class TrainRequest(BaseModel):
     dropout: float = Field(default=0.0, ge=0.0, le=0.9)
     label_smoothing: float = Field(default=0.0, ge=0.0, lt=1.0)
     cm_every: int = Field(default=5, ge=1)
+
+
+class TrainImageSyncRequest(TrainRequest):
+    step: int | None = None
+    use_transfer_learning: bool = True
+
+
+class TrainImageSyncResponse(BaseModel):
+    status: str
+    final_model_path: str
+    resume_used: str | None = None
+
+
+class ImageDbResetRequest(BaseModel):
+    output_folder: str = "data/image_db"
+
+
+class ImageDbUpdateRequest(BaseModel):
+    step: int
+    db_url: str = _DEFAULT_DB_URL
+    sample_number: float | None = None
+    image_column: str = "image_file"
+    label_column: str = "prdtypecode"
+    input_folder: str = "data/image_data"
+    output_folder: str = "data/image_db"
+
+
+class ImageDbResponse(BaseModel):
+    status: str
+    output_folder: str
+    step: int | None = None
+    train_file_count: int = 0
+    val_file_count: int = 0
 
 
 class JobStatus(str, Enum):

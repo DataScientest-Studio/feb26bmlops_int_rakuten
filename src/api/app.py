@@ -21,7 +21,7 @@ from src.pipelines.text_pipeline import train_text_bert_from_csv, train_text_lin
 from src.models.predict_model import predict_text, predict_text_linear_svm
 from src.models.mlflow_utils import train_and_log, evaluate_and_promote
 from src.models.classifier import classifier_service
-from . import train, predict, jobs
+from src.api import train, predict, jobs
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -29,11 +29,7 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        classifier_service.load()
-    except Exception as e:
-        print(f"[WARNING] Could not load classifier model: {e}")
-        print("[WARNING] /predict endpoints will return 503 until model is available.")
+    # Image classifier is loaded lazily on first inference call.
     yield
 
 
@@ -109,14 +105,16 @@ def train_linear_svm_endpoint(request: TrainLinearSVMTextRequest):
 
         vectorizer = joblib.load(os.path.join(output["output_dir"], "vectorizer.joblib"))
         model      = joblib.load(os.path.join(output["output_dir"], "linear_svm.joblib"))
+        metrics_path = os.path.join(output["output_dir"], "eval_metrics.json")
+
         train_and_log(
             model=Pipeline([("tfidf", vectorizer), ("svm", model)]),
             model_name="SVM",
             X_test=None,
             y_test=None,
-            metrics_path=os.path.join(output["output_dir"], "eval_metrics.json"),
+            metrics_path=metrics_path,
         )
-        evaluate_and_promote(new_metrics=output, model_name="SVM")
+        evaluate_and_promote(new_metrics=output, model_name="SVM", metrics_path=metrics_path)
 
         return TrainTextResponse(
             run_id=output["run_id"],

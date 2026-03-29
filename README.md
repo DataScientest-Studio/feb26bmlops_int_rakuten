@@ -95,6 +95,67 @@ curl -X POST http://localhost:8000/predict/text \
     }'
 ```
 
+### Image classification API
+
+The image API exposes synchronous and asynchronous training, single-image inference, batch inference, and helper endpoints used by Airflow to rebuild `data/image_db`.
+
+Image train (synchronous, used by Airflow):
+
+```bash
+curl -X POST http://localhost:8000/train/sync \
+    -H "Content-Type: application/json" \
+    -d '{
+        "model_type": "resnet50",
+        "mode": "classifier",
+        "epochs": 1,
+        "lr_cls": 0.01,
+        "lr_back": 0.001,
+        "scheduler": "steplr",
+        "dropout": 0.2,
+        "step": 1,
+        "use_transfer_learning": false
+    }'
+```
+
+Image train (asynchronous, returns a job id immediately):
+
+```bash
+curl -X POST http://localhost:8000/train \
+    -H "Content-Type: application/json" \
+    -d '{
+        "model_type": "resnet50",
+        "mode": "classifier",
+        "epochs": 3,
+        "lr_cls": 0.01,
+        "lr_back": 0.001,
+        "scheduler": "steplr",
+        "dropout": 0.2,
+        "resume": "./models/image/resnet50_latest.model"
+    }'
+```
+
+The async endpoint returns a `job_id`. Training progress can then be checked through the jobs endpoint:
+
+```bash
+curl http://localhost:8000/jobs/<job_id>
+```
+
+Single-image predict:
+
+```bash
+curl -X POST "http://localhost:8000/predict?top_k=5" \
+    -H "accept: application/json" \
+    -F "file=@/absolute/path/to/image.jpg"
+```
+
+Batch predict:
+
+```bash
+curl -X POST http://localhost:8000/predict/batch \
+    -H "accept: application/json" \
+    -F "files=@/absolute/path/to/image1.jpg" \
+    -F "files=@/absolute/path/to/image2.jpg"
+```
 
 
 # DVC/DagsHub
@@ -117,6 +178,12 @@ dvc remote modify origin --local auth basic
 dvc remote modify origin --local user YOUR_DAGSHUB_USER
 dvc remote modify origin --local password YOUR_DAGSHUB_TOKEN
 ```
+
+To use the dockerize api version first call:
+```ShellScript
+make dagshub_token=YOUR_DAGSHUB_TOKEN dagshub_user=YOUR_DAGSHUB_USER
+```
+This will set the needed data in the .env.local file needed by docker compose
 
 ### Download data
 

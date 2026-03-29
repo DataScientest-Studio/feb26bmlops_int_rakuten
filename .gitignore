@@ -61,6 +61,7 @@ docs/_build/
 target/
 
 # DotEnv configuration
+.env.local
 .env
 
 # Database
