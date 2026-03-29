@@ -69,6 +69,7 @@ def evaluate_and_promote(new_metrics, model_name, metrics_path):
     client = MlflowClient()
     model_name_registry = f"Rakuten_{model_name}"
     alias = "production"
+    promoted = False
 
     try:
         # 1. fetch current "Production" model
@@ -95,6 +96,7 @@ def evaluate_and_promote(new_metrics, model_name, metrics_path):
                 model_name_registry, alias, latest_version)
 
             update_local_best_file(model_name, metrics_path)
+            promoted = True
         else:
             print(f"Old model remains champion (Old F1: {old_f1}, New F1: {new_f1}).")
 
@@ -110,10 +112,13 @@ def evaluate_and_promote(new_metrics, model_name, metrics_path):
                 client.set_registered_model_alias(model_name_registry, alias, first_version.version)
 
                 update_local_best_file(model_name, metrics_path)
+                promoted = True
 
                 print(f"Model {model_name_registry} version {first_version.version} is now Production.")
         except Exception as inner_e:
             print(f"Error. Model never registered. {inner_e}")
+
+    return promoted
 
 
 def log_image_training_run(

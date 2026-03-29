@@ -27,11 +27,7 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        classifier_service.load()
-    except Exception as e:
-        print(f"[WARNING] Could not load classifier model: {e}")
-        print("[WARNING] /predict endpoints will return 503 until model is available.")
+    # Image classifier is loaded lazily on first inference call.
     yield
 
 

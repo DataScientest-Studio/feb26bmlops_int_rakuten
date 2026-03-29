@@ -17,6 +17,8 @@ class ClassifierService:
 
     def __init__(self):
         self._lock = threading.RLock()
+        self._dirty = False
+        self._model_mtime: float | None = None
         self.classifier: ImageClassifier | None = None
         self.class_names: list[str] = []
         self.model_path: str | None = None
@@ -56,13 +58,38 @@ class ClassifierService:
             self.model_path = model_path
             self.model_type = model_type
             self.num_classes = num_classes
+            self._dirty = False
+            self._model_mtime = os.path.getmtime(model_path)
 
         print(f"[ClassifierService] Model loaded: {model_type} from {model_path} on {self.device}")
 
     def is_loaded(self) -> bool:
         return getattr(self, 'classifier', None) is not None
 
+    def mark_dirty(self):
+        with self._lock:
+            self._dirty = True
+
+    def _ensure_fresh_model(self):
+        with self._lock:
+            configured_path = os.environ.get("BEST_MODEL_PATH")
+            if not configured_path or not os.path.exists(configured_path):
+                return
+
+            if self.classifier is None:
+                self.load()
+                return
+
+            latest_mtime = os.path.getmtime(configured_path)
+            needs_reload = self._dirty
+            needs_reload = needs_reload or (self.model_path != configured_path)
+            needs_reload = needs_reload or (self._model_mtime != latest_mtime)
+
+            if needs_reload:
+                self.load()
+
     def predict_single(self, img, top_k: int = 5) -> dict:
+        self._ensure_fresh_model()
         with self._lock:
             probs: np.ndarray = self.classifier.predict_image_mem(img, device=self.device)
             class_names = self.class_names
@@ -84,6 +111,7 @@ class ClassifierService:
         return {"class_name": class_name, "class_id": class_id, "confidence": confidence, "top_k": top_k_results}
 
     def predict_batch(self, image_paths: list[str]) -> list[dict]:
+        self._ensure_fresh_model()
         with self._lock:
             probs_array: np.ndarray = self.classifier.predict_batch(image_paths)
             class_names = self.class_names

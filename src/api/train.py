@@ -14,6 +14,7 @@ from src.api.schemas import (
 from src.api.job_store import job_store
 from src.models.trainer import start_training, run_training_sync
 from src.models.mlflow_utils import log_image_training_run, evaluate_and_promote
+from src.models.classifier import classifier_service
 from src.data.create_image_db import update_image_db_for_step
 
 router = APIRouter(prefix="/train", tags=["train"])
@@ -88,10 +89,13 @@ async def train_sync(request: TrainImageSyncRequest):
             )
 
             if image_metrics and "eval_f1_macro" in image_metrics:
-                evaluate_and_promote(
+                promoted = evaluate_and_promote(
                     new_metrics=image_metrics,
                     model_name=f"IMAGE_{effective_request.model_type.value.upper()}",
+                    metrics_path=train_output["csv_log"],
                 )
+                if promoted:
+                    classifier_service.mark_dirty()
         except Exception as log_exc:
             # Training already succeeded; do not fail API because logging failed.
             print(f"[MLflow][Image] Logging skipped due to error: {log_exc}")
