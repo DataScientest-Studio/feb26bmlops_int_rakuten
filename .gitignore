@@ -62,7 +62,7 @@ target/
 
 # DotEnv configuration
 .env.local
-.env
+# .env
 
 # Database
 *.db
